@@ -19,11 +19,13 @@ When given a list of things to build or do, treat it as a sequential queue.
 Do not advance until the current head item is fully verified and working.
 
 Wrong approach:
+
 - Build skeleton for all five features
 - Fill each one partially
 - Ship a mostly working app full of TODOs and placeholders
 
 Right approach:
+
 - Pick feature #1
 - Implement it completely
 - Verify it
@@ -38,13 +40,16 @@ When the user provides features, tasks, or requirements:
 
 1. Extract all requested features/tasks explicitly from the user message.
 2. Rank by this order:
+
 - User-stated priority (first/most important/start with) always wins.
 - Dependency order (prerequisites before dependents).
 - Foundation before decoration (logic/data/auth/routing/state before polish).
 - Complexity tie-breaker (simpler first for a fast working baseline).
+
 3. State the queue explicitly before building.
 
 Queue statement format:
+
 - "I'll build these in this order: (1) auth, (2) data model, (3) dashboard UI, (4) export. Starting #1 now."
 
 Do not silently assume ordering.
@@ -79,6 +84,7 @@ After completing and verifying a feature:
 4. If the build is long (4+ features) or intent is ambiguous, pause for user confirmation after each completed feature.
 
 Status line format:
+
 - "Feature #1 (auth) is complete and verified. Moving to Feature #2 (data model)."
 
 ### Step 5 - Repeat Until Queue Is Empty
@@ -89,46 +95,56 @@ After all items are complete, do a final integration check to verify features wo
 ## Hard Rules
 
 Never scaffold everything first.
+
 - Do not create broad project skeletons with stubs for future features.
 - Exception: minimal entry container is allowed only for the current feature.
 
 Never leave current feature broken to start the next.
+
 - If a dependency is discovered, re-rank queue and finish the prerequisite first.
 
 Never use fake data/placeholders without explicit user agreement.
+
 - If user explicitly requests stubs, label clearly:
 - "STUB - replace with real implementation before use"
 
 Never defer and forget.
+
 - If deferred, keep it in queue and implement in turn, or explicitly agree to remove from scope.
 
 Never advance on failed verification.
+
 - Fix current feature, re-verify, then continue.
 
 ## Handling Common Situations
 
 User gives a giant list:
+
 1. Extract and number features.
 2. Propose order with brief reasoning.
 3. Ask user to confirm/reorder.
 4. Execute sequentially.
 
 User says "build the whole thing":
+
 - Interpret as build all features properly in sequence, not permission to scaffold/stub.
 
 Later feature requires refactor of earlier feature:
+
 1. Pause current feature.
 2. Refactor earlier feature.
 3. Re-verify earlier feature.
 4. Resume current feature.
 
 User interrupts with a new feature:
+
 1. Acknowledge request.
 2. Insert into queue at requested position (or end by default).
 3. Finish current feature.
 4. Address new item in turn.
 
 Time/context pressure:
+
 1. Finish current feature before stopping.
 2. Record queue status (done/verified/remaining).
 3. Provide handoff summary for next session.
@@ -138,6 +154,7 @@ Time/context pressure:
 A feature is fully working only if a skeptical user could test it now and it would pass.
 
 Self-check:
+
 - Would this work for someone new to the code?
 - Any hidden assumptions not yet implemented?
 - Most obvious error case covered?
@@ -157,9 +174,11 @@ If any answer is no or maybe, feature is not done.
 ## Example Execution
 
 User request:
+
 - "Build a React todo app with task list, add, delete, mark complete, and local storage persistence."
 
 Queue:
+
 1. Task list display
 2. Add task
 3. Delete task
@@ -167,6 +186,7 @@ Queue:
 5. Local storage persistence
 
 Then:
+
 - Complete and verify #1 before starting #2
 - Continue until all features are complete and integrated
 
@@ -182,5 +202,6 @@ Then:
 8. Run final integration check.
 
 Goal:
+
 - Not "most code written"
 - Working software delivered one verified feature at a time
