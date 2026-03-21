@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { spacing } from '../../../shared/theme/tokens';
+import { colors, radii, shadow, spacing, typography } from '../../../shared/theme/tokens';
 
 import { useAdminFleetOverview } from './useAdminFleetOverview';
 
@@ -14,17 +15,22 @@ function formatClock(isoDate: string) {
 
 function getStatusColor(status: 'Active' | 'Delayed' | 'Offline') {
   if (status === 'Delayed') {
-    return '#facc15';
+    return colors.amber;
   }
 
   if (status === 'Offline') {
-    return '#fb7185';
+    return colors.red;
   }
 
-  return '#34d399';
+  return colors.green;
 }
 
 export function AdminFleetOverviewScreen() {
+  const isWeb = Platform.OS === 'web';
+  const [activeNav, setActiveNav] = useState<
+    'dashboard' | 'live-map' | 'routes' | 'bus-stops' | 'schedule' | 'alerts' | 'drivers' | 'vehicles' | 'reports' | 'settings'
+  >('dashboard');
+
   const {
     rows,
     incidentQueue,
@@ -115,84 +121,308 @@ export function AdminFleetOverviewScreen() {
     thcClosureTrend
   } = useAdminFleetOverview();
 
+  const navTitle: Record<typeof activeNav, string> = {
+    dashboard: 'Dashboard',
+    'live-map': 'Live Map',
+    routes: 'Routes',
+    'bus-stops': 'Bus Stops',
+    schedule: 'Schedule',
+    alerts: 'Alerts',
+    drivers: 'Drivers',
+    vehicles: 'Vehicles',
+    reports: 'Reports',
+    settings: 'Settings'
+  };
+
+  const navDescription: Record<typeof activeNav, string> = {
+    dashboard: 'Operations overview across fleet, alerts, and handover readiness.',
+    'live-map': 'Live tracking feed, route health trends, and incident monitoring.',
+    routes: 'Route performance, dispatch policy controls, and SLA guardrails.',
+    'bus-stops': 'Stop-level operations, service health, and dispatch coordination.',
+    schedule: 'Service advisories, policy updates, and handover scheduling control.',
+    alerts: 'Alert triage, acknowledgments, and operator escalation workflow.',
+    drivers: 'Driver-facing handover, checklist, and operational continuity tools.',
+    vehicles: 'Vehicle and turnover controls for shift and readiness management.',
+    reports: 'Report snapshots, audit trail, and THC performance insights.',
+    settings: 'System controls for dispatch policy, recovery, and thresholds.'
+  };
+
+  const showOverviewRows =
+    activeNav === 'dashboard' || activeNav === 'live-map' || activeNav === 'bus-stops' || activeNav === 'alerts';
+  const showControlPanels = {
+    broadcast: activeNav === 'dashboard' || activeNav === 'schedule' || activeNav === 'alerts',
+    trend: activeNav === 'dashboard' || activeNav === 'live-map' || activeNav === 'routes',
+    policy: activeNav === 'dashboard' || activeNav === 'routes' || activeNav === 'settings',
+    report: activeNav === 'dashboard' || activeNav === 'reports',
+    handover: activeNav === 'dashboard' || activeNav === 'drivers' || activeNav === 'vehicles' || activeNav === 'schedule',
+    sla: activeNav === 'dashboard' || activeNav === 'routes' || activeNav === 'settings',
+    audit: activeNav === 'dashboard' || activeNav === 'reports' || activeNav === 'settings',
+    thc:
+      activeNav === 'dashboard' ||
+      activeNav === 'drivers' ||
+      activeNav === 'vehicles' ||
+      activeNav === 'reports'
+  };
+
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.rootContent}>
-      <Text style={styles.heading}>Admin Fleet Overview</Text>
-      <Text style={styles.subheading}>Mapandan e-Bus Operations Center</Text>
-
-      <View style={styles.kpiRow}>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiValue}>{activeTrips}</Text>
-          <Text style={styles.kpiLabel}>Active Trips</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiValue}>{avgWaitMins}</Text>
-          <Text style={styles.kpiLabel}>Avg Wait (min)</Text>
-        </View>
-        <View style={styles.kpiCard}>
-          <Text style={styles.kpiValue}>{alertsToday}</Text>
-          <Text style={styles.kpiLabel}>Alerts Today</Text>
-        </View>
-      </View>
-
-      <View style={styles.healthCard}>
-        <Text style={styles.healthLabel}>Fleet Health</Text>
-        <Text style={styles.healthValue}>{fleetHealth}</Text>
-        <Text style={styles.healthMeta}>Updated {formatClock(lastUpdatedAt)} • Pending incidents {pendingIncidents}</Text>
-      </View>
-
-      <View style={styles.table}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.colHeader, styles.colBus]}>Bus</Text>
-          <Text style={[styles.colHeader, styles.colRoute]}>Route</Text>
-          <Text style={[styles.colHeader, styles.colStatus]}>Status</Text>
-        </View>
-
-        {rows.map((row) => (
-          <View key={row.id} style={styles.tableRow}>
-            <Text style={[styles.cellText, styles.colBus]}>{row.id}</Text>
-            <View style={styles.colRoute}>
-              <Text style={styles.cellText}>{row.route}</Text>
-              <Text style={styles.cellSubtext}>
-                Occ {row.occupancyPercent}% • OTP {row.adherencePercent}%
-              </Text>
+    <View style={styles.pageShell}>
+      {isWeb ? (
+        <View style={styles.sidebar}>
+          <View style={styles.sidebarLogoRow}>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoMarkText}>T</Text>
             </View>
-            <Text style={[styles.colStatus, styles.statusText, { color: getStatusColor(row.status) }]}>
-              {row.status}
-            </Text>
+            <View>
+              <Text style={styles.logoText}>TransitOps</Text>
+              <Text style={styles.logoSub}>Admin</Text>
+            </View>
           </View>
-        ))}
-      </View>
 
-      <View style={styles.incidentPanel}>
-        <Text style={styles.incidentTitle}>Incident Queue</Text>
-        {incidentQueue.map((incident) => (
-          <View key={incident.id} style={styles.incidentRow}>
-            <View style={styles.incidentLeft}>
-              <Text style={styles.incidentMain}>
-                {incident.busId} • {incident.type} • {incident.severity}
-              </Text>
-              <Text style={styles.incidentNote}>{incident.note}</Text>
-              <Text style={styles.incidentTime}>Reported {formatClock(incident.reportedAt)}</Text>
-            </View>
-
+          <View style={styles.sidebarSection}>
+            <Text style={styles.sidebarSectionLabel}>Overview</Text>
             <Pressable
-              style={[
-                styles.ackButton,
-                incident.acknowledged ? styles.ackButtonDone : null
-              ]}
-              onPress={() => acknowledgeIncident(incident.id)}
-              disabled={incident.acknowledged}
+              style={[styles.navItem, activeNav === 'dashboard' ? styles.navItemActive : null]}
+              onPress={() => setActiveNav('dashboard')}
             >
-              <Text style={styles.ackButtonText}>
-                {incident.acknowledged ? 'ACKED' : 'ACK'}
-              </Text>
+              <Text style={activeNav === 'dashboard' ? styles.navItemTextActive : styles.navItemText}>Dashboard</Text>
+            </Pressable>
+            <Pressable style={[styles.navItem, activeNav === 'live-map' ? styles.navItemActive : null]} onPress={() => setActiveNav('live-map')}>
+              <Text style={activeNav === 'live-map' ? styles.navItemTextActive : styles.navItemText}>Live Map</Text>
+            </Pressable>
+            <Pressable style={[styles.navItem, activeNav === 'routes' ? styles.navItemActive : null]} onPress={() => setActiveNav('routes')}>
+              <Text style={activeNav === 'routes' ? styles.navItemTextActive : styles.navItemText}>Routes</Text>
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>3</Text>
+              </View>
             </Pressable>
           </View>
-        ))}
-      </View>
 
-      <View style={styles.broadcastPanel}>
+          <View style={styles.sidebarSection}>
+            <Text style={styles.sidebarSectionLabel}>Manage</Text>
+            <Pressable style={[styles.navItem, activeNav === 'bus-stops' ? styles.navItemActive : null]} onPress={() => setActiveNav('bus-stops')}>
+              <Text style={activeNav === 'bus-stops' ? styles.navItemTextActive : styles.navItemText}>Bus Stops</Text>
+            </Pressable>
+            <Pressable style={[styles.navItem, activeNav === 'schedule' ? styles.navItemActive : null]} onPress={() => setActiveNav('schedule')}>
+              <Text style={activeNav === 'schedule' ? styles.navItemTextActive : styles.navItemText}>Schedule</Text>
+            </Pressable>
+            <Pressable style={[styles.navItem, activeNav === 'alerts' ? styles.navItemActive : null]} onPress={() => setActiveNav('alerts')}>
+              <Text style={activeNav === 'alerts' ? styles.navItemTextActive : styles.navItemText}>Alerts</Text>
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>7</Text>
+              </View>
+            </Pressable>
+            <Pressable style={[styles.navItem, activeNav === 'drivers' ? styles.navItemActive : null]} onPress={() => setActiveNav('drivers')}>
+              <Text style={activeNav === 'drivers' ? styles.navItemTextActive : styles.navItemText}>Drivers</Text>
+            </Pressable>
+            <Pressable style={[styles.navItem, activeNav === 'vehicles' ? styles.navItemActive : null]} onPress={() => setActiveNav('vehicles')}>
+              <Text style={activeNav === 'vehicles' ? styles.navItemTextActive : styles.navItemText}>Vehicles</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.sidebarSection}>
+            <Text style={styles.sidebarSectionLabel}>System</Text>
+            <Pressable style={[styles.navItem, activeNav === 'reports' ? styles.navItemActive : null]} onPress={() => setActiveNav('reports')}>
+              <Text style={activeNav === 'reports' ? styles.navItemTextActive : styles.navItemText}>Reports</Text>
+            </Pressable>
+            <Pressable style={[styles.navItem, activeNav === 'settings' ? styles.navItemActive : null]} onPress={() => setActiveNav('settings')}>
+              <Text style={activeNav === 'settings' ? styles.navItemTextActive : styles.navItemText}>Settings</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.sidebarFooter}>
+            <View style={styles.userRow}>
+              <View style={styles.userAvatar}>
+                <Text style={styles.userAvatarText}>JM</Text>
+              </View>
+              <View>
+                <Text style={styles.userName}>Juan M.</Text>
+                <Text style={styles.userRole}>Ops Manager</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      <ScrollView style={styles.root} contentContainerStyle={[styles.rootContent, isWeb ? styles.rootContentWeb : null]}>
+        {isWeb ? (
+          <View style={styles.topbar}>
+            <Text style={styles.topbarTitle}>{navTitle[activeNav]}</Text>
+            <Text style={styles.topbarDate}>Updated {formatClock(lastUpdatedAt)}</Text>
+            <View style={styles.searchBox}>
+              <Text style={styles.searchBoxText}>Search stops, routes</Text>
+            </View>
+            <Pressable style={styles.topbarButton}>
+              <Text style={styles.topbarButtonText}>☆</Text>
+            </Pressable>
+            <Pressable style={styles.topbarButton}>
+              <Text style={styles.topbarButtonText}>🔔</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View style={styles.dashboardContent}>
+          <Text style={styles.heading}>Admin Fleet Overview</Text>
+          <Text style={styles.subheading}>Mapandan e-Bus Operations Center</Text>
+          <View style={styles.navSummaryCard}>
+            <Text style={styles.navSummaryTitle}>{navTitle[activeNav]}</Text>
+            <Text style={styles.navSummaryText}>{navDescription[activeNav]}</Text>
+          </View>
+
+          {showOverviewRows ? <View style={styles.metricsRow}>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Active Trips</Text>
+              <Text style={styles.metricValue}>{activeTrips}</Text>
+              <Text style={styles.metricMeta}>Running now</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Avg Wait</Text>
+              <Text style={styles.metricValue}>{avgWaitMins}m</Text>
+              <Text style={styles.metricMeta}>Across routes</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Active Alerts</Text>
+              <Text style={styles.metricValue}>{alertsToday}</Text>
+              <Text style={styles.metricMeta}>{pendingIncidents} pending incidents</Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Fleet Health</Text>
+              <Text style={styles.metricValue}>{fleetHealth}</Text>
+              <Text style={styles.metricMeta}>System status</Text>
+            </View>
+          </View> : null}
+
+          {showOverviewRows ? <View style={styles.midRow}>
+            <View style={styles.chartCard}>
+              <View style={styles.cardHeader}>
+                <View>
+                  <Text style={styles.cardTitle}>Passenger Volume</Text>
+                  <Text style={styles.cardSub}>Hourly ridership approximation</Text>
+                </View>
+                <View style={styles.tabGroup}>
+                  <Text style={[styles.tabPill, styles.tabPillActive]}>Today</Text>
+                  <Text style={styles.tabPill}>Week</Text>
+                  <Text style={styles.tabPill}>Month</Text>
+                </View>
+              </View>
+
+              <View style={styles.chartLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, styles.legendDotBlue]} />
+                  <Text style={styles.legendText}>Passengers</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, styles.legendDotAmber]} />
+                  <Text style={styles.legendText}>Target</Text>
+                </View>
+              </View>
+
+              <View style={styles.chartBarWrap}>
+                {(routeTrendSummary.map((trend) => trend.avgWaitMins) ?? [8, 9, 7, 10]).map((value: number, index: number) => (
+                  <View key={`bar-${index}`} style={styles.chartBarCol}>
+                    <View style={[styles.chartBar, { height: Math.max(18, value * 7) }]} />
+                    <Text style={styles.chartBarLabel}>{index + 1}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.liveCard}>
+              <View style={styles.liveCardHeader}>
+                <View style={styles.liveDot} />
+                <Text style={styles.cardTitle}>Live Arrivals</Text>
+              </View>
+
+              {rows.slice(0, 5).map((row) => (
+                <View key={`live-${row.id}`} style={styles.liveItem}>
+                  <View style={styles.liveBadge}>
+                    <Text style={styles.liveBadgeText}>{row.id.replace('BUS-', '')}</Text>
+                  </View>
+                  <View style={styles.liveBody}>
+                    <Text style={styles.liveRoute}>{row.route}</Text>
+                    <Text style={styles.liveDetail}>Occ {row.occupancyPercent}% • OTP {row.adherencePercent}%</Text>
+                  </View>
+                  <Text style={[styles.liveTime, { color: getStatusColor(row.status) }]}>{row.status}</Text>
+                </View>
+              ))}
+            </View>
+          </View> : null}
+
+          {showOverviewRows ? <View style={styles.botRow}>
+            <View style={styles.tableCard}>
+              <View style={styles.tableToolbar}>
+                <Text style={styles.cardTitle}>Bus Stops</Text>
+                <View style={styles.filterChipActive}>
+                  <Text style={styles.filterChipActiveText}>All</Text>
+                </View>
+                <View style={styles.filterChip}>
+                  <Text style={styles.filterChipText}>Live</Text>
+                </View>
+                <View style={styles.filterChip}>
+                  <Text style={styles.filterChipText}>Delayed</Text>
+                </View>
+                <Pressable style={styles.addButton}>
+                  <Text style={styles.addButtonText}>+ Add Stop</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.table}>
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.colHeader, styles.colBus]}>Bus</Text>
+                  <Text style={[styles.colHeader, styles.colRoute]}>Route</Text>
+                  <Text style={[styles.colHeader, styles.colStatus]}>Status</Text>
+                </View>
+
+                {rows.map((row) => (
+                  <View key={row.id} style={styles.tableRow}>
+                    <Text style={[styles.cellText, styles.colBus]}>{row.id}</Text>
+                    <View style={styles.colRoute}>
+                      <Text style={styles.cellText}>{row.route}</Text>
+                      <Text style={styles.cellSubtext}>
+                        Occ {row.occupancyPercent}% • OTP {row.adherencePercent}%
+                      </Text>
+                    </View>
+                    <Text style={[styles.colStatus, styles.statusText, { color: getStatusColor(row.status) }]}>
+                      {row.status}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.tableFooter}>
+                <Text style={styles.tableFooterText}>Showing {rows.length} active buses</Text>
+              </View>
+            </View>
+
+            <View style={styles.alertCard}>
+              <View style={styles.cardHeader}>
+                <View>
+                  <Text style={styles.cardTitle}>Active Alerts</Text>
+                  <Text style={styles.cardSub}>Requires operator attention</Text>
+                </View>
+              </View>
+
+              {incidentQueue.map((incident) => (
+                <View key={`alert-${incident.id}`} style={styles.alertItem}>
+                  <View style={styles.alertBody}>
+                    <Text style={styles.alertTitle}>{incident.busId} - {incident.type}</Text>
+                    <Text style={styles.alertDesc}>{incident.note}</Text>
+                    <Text style={styles.alertMeta}>Severity {incident.severity} • {formatClock(incident.reportedAt)}</Text>
+                  </View>
+                  <Pressable
+                    style={[styles.ackButton, incident.acknowledged ? styles.ackButtonDone : null]}
+                    onPress={() => acknowledgeIncident(incident.id)}
+                    disabled={incident.acknowledged}
+                  >
+                    <Text style={styles.ackButtonText}>{incident.acknowledged ? 'ACKED' : 'ACK'}</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          </View> : null}
+
+          <View style={styles.controlGrid}>
+
+      <View style={[styles.broadcastPanel, !showControlPanels.broadcast ? styles.hiddenPanel : null]}>
         <View style={styles.broadcastHeaderRow}>
           <Text style={styles.broadcastTitle}>Service Broadcast</Text>
           <Pressable style={styles.broadcastTargetChip} onPress={cycleBroadcastTarget}>
@@ -204,7 +434,7 @@ export function AdminFleetOverviewScreen() {
           value={broadcastDraft}
           onChangeText={setBroadcastDraft}
           placeholder="Write service advisory message..."
-          placeholderTextColor="#9db4dd"
+          placeholderTextColor={colors.ink3}
           multiline
           style={styles.broadcastInput}
         />
@@ -234,7 +464,7 @@ export function AdminFleetOverviewScreen() {
         ) : null}
       </View>
 
-      <View style={styles.trendPanel}>
+      <View style={[styles.trendPanel, !showControlPanels.trend ? styles.hiddenPanel : null]}>
         <Text style={styles.trendTitle}>Route Performance Trends</Text>
         {routeTrendSummary.map((trend) => (
           <View key={trend.route} style={styles.trendRow}>
@@ -254,7 +484,7 @@ export function AdminFleetOverviewScreen() {
         ))}
       </View>
 
-      <View style={styles.policyPanel}>
+      <View style={[styles.policyPanel, !showControlPanels.policy ? styles.hiddenPanel : null]}>
         <Text style={styles.policyTitle}>Service Policy Controls</Text>
 
         <View style={styles.policyRow}>
@@ -284,7 +514,7 @@ export function AdminFleetOverviewScreen() {
         {policyBanner ? <Text style={styles.policyBanner}>{policyBanner}</Text> : null}
       </View>
 
-      <View style={styles.reportPanel}>
+      <View style={[styles.reportPanel, !showControlPanels.report ? styles.hiddenPanel : null]}>
         <View style={styles.reportHeaderRow}>
           <Text style={styles.reportTitle}>Daily Report Snapshot</Text>
           <Pressable
@@ -312,14 +542,14 @@ export function AdminFleetOverviewScreen() {
         ) : null}
       </View>
 
-      <View style={styles.handoverPanel}>
+      <View style={[styles.handoverPanel, !showControlPanels.handover ? styles.hiddenPanel : null]}>
         <Text style={styles.handoverTitle}>Shift Handover Notes</Text>
 
         <TextInput
           value={handoverNoteDraft}
           onChangeText={setHandoverNoteDraft}
           placeholder="Write key shift updates for the next dispatcher..."
-          placeholderTextColor="#c7d2fe"
+          placeholderTextColor={colors.ink3}
           multiline
           style={styles.handoverInput}
         />
@@ -349,7 +579,7 @@ export function AdminFleetOverviewScreen() {
         ) : null}
       </View>
 
-      <View style={styles.slaPanel}>
+      <View style={[styles.slaPanel, !showControlPanels.sla ? styles.hiddenPanel : null]}>
         <Text style={styles.slaTitle}>SLA Guardrails</Text>
 
         <View style={styles.slaRow}>
@@ -382,14 +612,14 @@ export function AdminFleetOverviewScreen() {
         </View>
       </View>
 
-      <View style={styles.auditPanel}>
+      <View style={[styles.auditPanel, !showControlPanels.audit ? styles.hiddenPanel : null]}>
         <Text style={styles.auditTitle}>Operations Audit Timeline</Text>
 
         <TextInput
           value={auditNoteDraft}
           onChangeText={setAuditNoteDraft}
           placeholder="Log dispatch action or decision..."
-          placeholderTextColor="#cbd5e1"
+          placeholderTextColor={colors.ink3}
           multiline
           style={styles.auditInput}
         />
@@ -419,7 +649,7 @@ export function AdminFleetOverviewScreen() {
         </View>
       </View>
 
-      <View style={styles.thcPanel}>
+      <View style={[styles.thcPanel, !showControlPanels.thc ? styles.hiddenPanel : null]}>
         <View style={styles.thcHeaderRow}>
           <Text style={styles.thcTitle}>THC: Team Handover Checklist</Text>
           <Text style={styles.thcPercent}>{thcCompletionPercent}%</Text>
@@ -590,7 +820,7 @@ export function AdminFleetOverviewScreen() {
               value={thcReopenReasonDraft}
               onChangeText={setThcReopenReasonDraft}
               placeholder="Reason for reopening turnover..."
-              placeholderTextColor="#bbf7d0"
+              placeholderTextColor={colors.ink3}
               style={styles.thcReopenInput}
             />
             <Pressable style={styles.thcReopenButton} onPress={reopenThcTurnover}>
@@ -656,107 +886,734 @@ export function AdminFleetOverviewScreen() {
             </View>
           </View>
         </View>
+          </View>
+        </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  pageShell: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: colors.bg
+  },
+  sidebar: {
+    width: 260,
+    backgroundColor: colors.bg2,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    gap: spacing.lg
+  },
+  sidebarTitle: {
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: '700',
+    fontFamily: typography.fontDisplay
+  },
+  sidebarItem: {
+    color: colors.ink2,
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: typography.fontBody
+  },
   root: {
     flex: 1,
-    backgroundColor: '#081226'
+    backgroundColor: colors.bg
   },
   rootContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
-    gap: spacing.sm
+    gap: spacing.md
+  },
+  rootContentWeb: {
+    paddingHorizontal: 32,
+    paddingTop: 28,
+    paddingBottom: 28,
+    gap: spacing.md
+  },
+  sidebarLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border
+  },
+  logoMark: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  logoMarkText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
+  },
+  logoText: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
+  },
+  logoSub: {
+    color: colors.ink4,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    fontFamily: typography.fontBody
+  },
+  sidebarSection: {
+    gap: 3
+  },
+  sidebarSectionLabel: {
+    color: colors.ink4,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: spacing.s10,
+    marginBottom: 4,
+    fontFamily: typography.fontBody
+  },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 8
+  },
+  navItemActive: {
+    backgroundColor: colors.amberBg,
+    borderColor: colors.amberBorder
+  },
+  navItemText: {
+    color: colors.ink3,
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+    fontFamily: typography.fontBody
+  },
+  navItemTextActive: {
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+    fontFamily: typography.fontBody
+  },
+  navBadge: {
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.redBorder,
+    backgroundColor: colors.redBg,
+    paddingHorizontal: 6,
+    paddingVertical: 1
+  },
+  navBadgeText: {
+    color: colors.red,
+    fontSize: 9,
+    fontWeight: '800',
+    fontFamily: typography.fontBody
+  },
+  sidebarFooter: {
+    marginTop: 'auto',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 7
+  },
+  userAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  userAvatarText: {
+    color: colors.blue,
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: typography.fontBody
+  },
+  userName: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
+  },
+  userRole: {
+    color: colors.ink4,
+    fontSize: 10,
+    fontFamily: typography.fontBody
+  },
+  topbar: {
+    minHeight: 60,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  topbarTitle: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    fontFamily: typography.fontDisplay
+  },
+  topbarDate: {
+    color: colors.ink3,
+    fontSize: 11,
+    marginLeft: spacing.s10,
+    fontFamily: typography.fontBody
+  },
+  searchBox: {
+    marginLeft: 'auto',
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    minWidth: 170
+  },
+  searchBoxText: {
+    color: colors.ink3,
+    fontSize: 11,
+    fontFamily: typography.fontBody
+  },
+  topbarButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  topbarButtonText: {
+    color: colors.ink3,
+    fontSize: 13,
+    fontFamily: typography.fontBody
+  },
+  dashboardContent: {
+    gap: spacing.md
+  },
+  navSummaryCard: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  navSummaryTitle: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: -0.1,
+    fontFamily: typography.fontDisplay
+  },
+  navSummaryText: {
+    color: colors.ink2,
+    fontSize: 10,
+    lineHeight: 13,
+    fontFamily: typography.fontBody
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    flexWrap: 'wrap'
+  },
+  metricCard: {
+    minWidth: 170,
+    flexGrow: 1,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }
+  },
+  metricLabel: {
+    color: colors.ink3,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontFamily: typography.fontBody
+  },
+  metricValue: {
+    color: colors.ink,
+    fontSize: 24,
+    lineHeight: 27,
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
+  },
+  metricMeta: {
+    color: colors.ink3,
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: typography.fontBody
+  },
+  midRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    flexWrap: 'wrap'
+  },
+  chartCard: {
+    flexGrow: 1,
+    minWidth: 360,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs
+  },
+  cardTitle: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
+  },
+  cardSub: {
+    color: colors.ink4,
+    fontSize: 10,
+    marginTop: 1,
+    fontFamily: typography.fontBody
+  },
+  tabGroup: {
+    flexDirection: 'row',
+    gap: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface2,
+    padding: 3
+  },
+  tabPill: {
+    color: colors.ink3,
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    fontFamily: typography.fontBody
+  },
+  tabPillActive: {
+    color: colors.ink,
+    backgroundColor: colors.surface
+  },
+  chartLegend: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.xs
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5
+  },
+  legendDot: {
+    width: 10,
+    height: 3,
+    borderRadius: 2
+  },
+  legendDotBlue: {
+    backgroundColor: colors.blue
+  },
+  legendDotAmber: {
+    backgroundColor: colors.amber
+  },
+  legendText: {
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
+  },
+  chartBarWrap: {
+    height: 136,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs
+  },
+  chartBarCol: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4
+  },
+  chartBar: {
+    width: '100%',
+    maxWidth: 22,
+    borderRadius: 7,
+    backgroundColor: colors.blueBg,
+    borderWidth: 1,
+    borderColor: colors.blueBorder
+  },
+  chartBarLabel: {
+    color: colors.ink4,
+    fontSize: 9,
+    fontFamily: typography.fontBody
+  },
+  liveCard: {
+    width: 340,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }
+  },
+  liveCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radii.full,
+    backgroundColor: colors.green
+  },
+  liveItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.xs,
+    paddingTop: 2
+  },
+  liveBadge: {
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginTop: 1
+  },
+  liveBadgeText: {
+    color: colors.blue,
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: typography.fontDisplay
+  },
+  liveBody: {
+    flex: 1,
+    gap: 2
+  },
+  liveRoute: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
+  },
+  liveDetail: {
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
+  },
+  liveTime: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
+  },
+  botRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+    flexWrap: 'wrap'
+  },
+  tableCard: {
+    flexGrow: 1,
+    minWidth: 360,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }
+  },
+  tableToolbar: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs
+  },
+  filterChip: {
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4
+  },
+  filterChipText: {
+    color: colors.ink3,
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
+  },
+  filterChipActive: {
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4
+  },
+  filterChipActiveText: {
+    color: colors.amber,
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
+  },
+  addButton: {
+    marginLeft: 'auto',
+    borderRadius: radii.md,
+    backgroundColor: colors.amber,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    ...shadow.sm
+  },
+  addButtonText: {
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
+  },
+  tableFooter: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface2
+  },
+  tableFooterText: {
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
+  },
+  alertCard: {
+    width: 360,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }
+  },
+  alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs
+  },
+  alertBody: {
+    flex: 1,
+    gap: 2
+  },
+  alertTitle: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
+  },
+  alertDesc: {
+    color: colors.ink2,
+    fontSize: 10,
+    lineHeight: 13,
+    fontFamily: typography.fontBody
+  },
+  alertMeta: {
+    color: colors.ink4,
+    fontSize: 9,
+    fontFamily: typography.fontBody
+  },
+  controlGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    alignItems: 'flex-start'
+  },
+  hiddenPanel: {
+    display: 'none'
   },
   heading: {
-    color: '#e8f1ff',
-    fontSize: 24,
-    lineHeight: 26,
-    fontWeight: '900'
+    color: colors.ink,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    fontFamily: typography.fontDisplay
   },
   subheading: {
-    color: '#9fb4db',
+    color: colors.ink2,
     fontSize: 12,
-    marginTop: -4
+    marginTop: -4,
+    fontFamily: typography.fontBody
   },
   kpiRow: {
     flexDirection: 'row',
-    gap: spacing.xs
+    gap: spacing.md
   },
   kpiCard: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(86, 117, 188, 0.58)',
-    backgroundColor: 'rgba(21, 38, 82, 0.74)',
-    paddingVertical: spacing.xs,
-    alignItems: 'center'
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
   },
   kpiValue: {
-    color: '#b9ddff',
+    color: colors.ink,
     fontSize: 21,
     lineHeight: 22,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   kpiLabel: {
-    color: '#8da7d6',
+    color: colors.ink2,
     fontSize: 10,
-    marginTop: 2
+    marginTop: 2,
+    fontFamily: typography.fontBody
   },
   healthCard: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(64, 161, 210, 0.56)',
-    backgroundColor: 'rgba(16, 69, 110, 0.52)',
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 2
   },
   healthLabel: {
-    color: '#9ec6ff',
+    color: colors.blue,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   healthValue: {
-    color: '#d8eeff',
+    color: colors.ink,
     fontSize: 17,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   healthMeta: {
-    color: '#acd0ff',
-    fontSize: 10
+    color: colors.ink2,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   table: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(75, 104, 168, 0.58)',
-    backgroundColor: 'rgba(17, 30, 64, 0.82)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     overflow: 'hidden'
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(31, 52, 102, 0.75)',
+    backgroundColor: colors.surface2,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(87, 117, 184, 0.5)',
+    borderBottomColor: colors.borderMd,
     paddingHorizontal: spacing.sm,
     paddingVertical: 8
   },
   colHeader: {
-    color: '#bbd3ff',
+    color: colors.ink2,
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.4
+    letterSpacing: 0.4,
+    fontFamily: typography.fontBody
   },
   tableRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(57, 82, 143, 0.35)',
+    borderBottomColor: colors.borderMd,
     alignItems: 'center'
   },
   colBus: {
@@ -771,39 +1628,48 @@ const styles = StyleSheet.create({
     textAlign: 'right'
   },
   cellText: {
-    color: '#e2ecff',
+    color: colors.ink,
     fontSize: 11,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   cellSubtext: {
-    color: '#9ab0da',
+    color: colors.ink3,
     fontSize: 10,
-    marginTop: 2
+    marginTop: 2,
+    fontFamily: typography.fontBody
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   incidentPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(191, 141, 79, 0.56)',
-    backgroundColor: 'rgba(76, 50, 19, 0.5)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
   },
   incidentTitle: {
-    color: '#ffe3b8',
-    fontSize: 11,
-    fontWeight: '800'
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
   },
   incidentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(200, 157, 106, 0.35)',
+    borderTopColor: colors.amberBorder,
     paddingTop: spacing.xs
   },
   incidentLeft: {
@@ -811,45 +1677,54 @@ const styles = StyleSheet.create({
     gap: 2
   },
   incidentMain: {
-    color: '#fff0d7',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   incidentNote: {
-    color: '#f7d9b2',
-    fontSize: 10
+    color: colors.ink2,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   incidentTime: {
-    color: '#dcbf96',
-    fontSize: 9
+    color: colors.ink3,
+    fontSize: 9,
+    fontFamily: typography.fontBody
   },
   ackButton: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(254, 215, 170, 0.78)',
-    backgroundColor: 'rgba(180, 105, 31, 0.62)',
-    paddingVertical: 6,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.amber,
+    backgroundColor: colors.surface,
+    paddingVertical: 8,
     paddingHorizontal: spacing.sm,
-    minWidth: 58,
+    minWidth: 64,
     alignItems: 'center'
   },
   ackButtonDone: {
-    borderColor: 'rgba(110, 231, 183, 0.72)',
-    backgroundColor: 'rgba(5, 120, 93, 0.56)'
+    borderColor: colors.green,
+    backgroundColor: colors.greenBg
   },
   ackButtonText: {
-    color: '#fff6e8',
+    color: colors.amber,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    fontFamily: typography.fontBody
   },
   broadcastPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(110, 154, 232, 0.55)',
-    backgroundColor: 'rgba(20, 46, 96, 0.58)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
   },
   broadcastHeaderRow: {
     flexDirection: 'row',
@@ -858,98 +1733,114 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   broadcastTitle: {
-    color: '#d5e7ff',
-    fontSize: 11,
-    fontWeight: '800',
-    flex: 1
+    color: colors.blue,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    flex: 1,
+    fontFamily: typography.fontDisplay
   },
   broadcastTargetChip: {
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(158, 195, 255, 0.76)',
-    backgroundColor: 'rgba(36, 78, 143, 0.64)',
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.xs,
     paddingVertical: 4
   },
   broadcastTargetText: {
-    color: '#e8f1ff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   broadcastInput: {
-    minHeight: 62,
+    minHeight: 70,
     maxHeight: 100,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(123, 166, 240, 0.62)',
-    backgroundColor: 'rgba(15, 37, 79, 0.74)',
-    color: '#ebf2ff',
-    fontSize: 12,
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    fontSize: 13,
     textAlignVertical: 'top',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontFamily: typography.fontBody
   },
   broadcastButton: {
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(134, 199, 255, 0.74)',
-    backgroundColor: 'rgba(26, 108, 171, 0.62)',
-    paddingVertical: 7,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.blue,
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
     alignItems: 'center'
   },
   broadcastButtonText: {
-    color: '#f0f7ff',
+    color: colors.blue,
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    fontFamily: typography.fontBody
   },
   broadcastBanner: {
-    color: '#cde2ff',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   },
   broadcastHistoryWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(119, 160, 235, 0.4)',
+    borderTopColor: colors.borderMd,
     paddingTop: spacing.xs,
     gap: 5
   },
   broadcastHistoryTitle: {
-    color: '#b8d4ff',
+    color: colors.ink2,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   broadcastHistoryRow: {
     gap: 2
   },
   broadcastHistoryMain: {
-    color: '#dfecff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   broadcastHistoryMessage: {
-    color: '#bed3f7',
-    fontSize: 10
+    color: colors.ink2,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   trendPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(95, 203, 179, 0.52)',
-    backgroundColor: 'rgba(10, 77, 68, 0.5)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
   },
   trendTitle: {
-    color: '#bbf7ea',
-    fontSize: 11,
-    fontWeight: '800'
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
   },
   trendRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(94, 203, 180, 0.28)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs
   },
   trendRouteBlock: {
@@ -957,94 +1848,113 @@ const styles = StyleSheet.create({
     gap: 2
   },
   trendRoute: {
-    color: '#d7fff6',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   trendMeta: {
-    color: '#9be6d6',
-    fontSize: 9
+    color: colors.ink2,
+    fontSize: 9,
+    fontFamily: typography.fontBody
   },
   trendMetricBlock: {
     width: 64,
     alignItems: 'flex-end'
   },
   trendWait: {
-    color: '#b7fff0',
+    color: colors.green,
     fontSize: 13,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   trendOtp: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 13,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   trendMetricLabel: {
-    color: '#8fd1c2',
-    fontSize: 9
+    color: colors.ink2,
+    fontSize: 9,
+    fontFamily: typography.fontBody
   },
   policyPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(186, 230, 253, 0.5)',
-    backgroundColor: 'rgba(23, 54, 88, 0.58)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
   },
   policyTitle: {
-    color: '#dbeafe',
-    fontSize: 11,
-    fontWeight: '800'
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
   },
   policyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.xs
+    gap: spacing.md
   },
   policyLabel: {
-    color: '#bfdbfe',
+    color: colors.ink2,
     fontSize: 10,
     fontWeight: '700',
-    flex: 1
+    flex: 1,
+    fontFamily: typography.fontBody
   },
   policyChip: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(147, 197, 253, 0.7)',
-    backgroundColor: 'rgba(30, 64, 111, 0.72)',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 4,
-    minWidth: 124,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.blue,
+    backgroundColor: colors.blueBg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    minWidth: 130,
     alignItems: 'center'
   },
   policyChipEnabled: {
-    borderColor: 'rgba(110, 231, 183, 0.74)',
-    backgroundColor: 'rgba(4, 120, 87, 0.54)'
+    borderColor: colors.green,
+    backgroundColor: colors.greenBg
   },
   policyChipDisabled: {
-    borderColor: 'rgba(253, 164, 175, 0.7)',
-    backgroundColor: 'rgba(159, 18, 57, 0.45)'
+    borderColor: colors.red,
+    backgroundColor: colors.redBg
   },
   policyChipText: {
-    color: '#eff6ff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    fontFamily: typography.fontBody
   },
   policyBanner: {
-    color: '#dbeafe',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   },
   reportPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(196, 181, 253, 0.52)',
-    backgroundColor: 'rgba(61, 35, 112, 0.48)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
   },
   reportHeaderRow: {
     flexDirection: 'row',
@@ -1053,129 +1963,170 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   reportTitle: {
-    color: '#ede9fe',
-    fontSize: 11,
-    fontWeight: '800',
-    flex: 1
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    flex: 1,
+    fontFamily: typography.fontDisplay
   },
   reportButton: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(221, 214, 254, 0.75)',
-    backgroundColor: 'rgba(109, 40, 217, 0.52)',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 4,
-    minWidth: 84,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.blue,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    minWidth: 90,
     alignItems: 'center'
   },
   reportButtonText: {
-    color: '#faf5ff',
-    fontSize: 10,
-    fontWeight: '700'
+    color: colors.blue,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    fontFamily: typography.fontBody
   },
   reportBanner: {
-    color: '#ddd6fe',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   },
   reportSummaryCard: {
-    borderRadius: 9,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(221, 214, 254, 0.42)',
-    backgroundColor: 'rgba(76, 29, 149, 0.35)',
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 2
   },
   reportSummaryTitle: {
-    color: '#f5f3ff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   reportSummaryLine: {
-    color: '#e9d5ff',
-    fontSize: 10
+    color: colors.ink2,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   handoverPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(253, 224, 71, 0.52)',
-    backgroundColor: 'rgba(113, 63, 18, 0.45)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
   },
   handoverTitle: {
-    color: '#fef08a',
-    fontSize: 11,
-    fontWeight: '800'
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
   },
   handoverInput: {
-    minHeight: 58,
-    maxHeight: 96,
-    borderRadius: 8,
+    minHeight: 70,
+    maxHeight: 100,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(250, 204, 21, 0.6)',
-    backgroundColor: 'rgba(120, 53, 15, 0.45)',
-    color: '#fef9c3',
-    fontSize: 12,
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    fontSize: 13,
     textAlignVertical: 'top',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontFamily: typography.fontBody
   },
   handoverButton: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(253, 224, 71, 0.75)',
-    backgroundColor: 'rgba(161, 98, 7, 0.58)',
-    paddingVertical: 6,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.amber,
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
     alignItems: 'center'
   },
   handoverButtonText: {
-    color: '#fefce8',
-    fontSize: 10,
-    fontWeight: '700'
+    color: colors.amber,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    fontFamily: typography.fontBody
   },
   handoverBanner: {
-    color: '#fef9c3',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   },
   handoverHistoryWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(250, 204, 21, 0.35)',
+    borderTopColor: colors.amberBorder,
     paddingTop: spacing.xs,
     gap: 4
   },
   handoverHistoryTitle: {
-    color: '#fde68a',
+    color: colors.amber,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   handoverHistoryRow: {
     gap: 2
   },
   handoverHistoryMeta: {
-    color: '#fcd34d',
-    fontSize: 9
+    color: colors.amber,
+    fontSize: 9,
+    fontFamily: typography.fontBody
   },
   handoverHistoryText: {
-    color: '#fef3c7',
-    fontSize: 10
+    color: colors.ink2,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   slaPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(251, 146, 60, 0.5)',
-    backgroundColor: 'rgba(124, 45, 18, 0.45)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  slaPanelOld: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: spacing.xs
   },
   slaTitle: {
-    color: '#fed7aa',
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
+  },
+  slaTitleOld: {
+    color: colors.amber,
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   slaRow: {
     flexDirection: 'row',
@@ -1184,122 +2135,197 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   slaLabel: {
-    color: '#fdba74',
+    color: colors.amber,
     fontSize: 10,
     fontWeight: '700',
-    flex: 1
+    flex: 1,
+    fontFamily: typography.fontBody
   },
   slaChip: {
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(254, 215, 170, 0.72)',
-    backgroundColor: 'rgba(154, 52, 18, 0.62)',
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg,
     paddingHorizontal: spacing.xs,
     paddingVertical: 4,
     minWidth: 92,
     alignItems: 'center'
   },
   slaChipText: {
-    color: '#fff7ed',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   slaBanner: {
-    color: '#ffedd5',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   },
   slaBreachWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(254, 215, 170, 0.35)',
+    borderTopColor: colors.amberBorder,
     paddingTop: spacing.xs,
     gap: 4
   },
   slaBreachTitle: {
-    color: '#fdba74',
+    color: colors.amber,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   slaNoBreach: {
-    color: '#fed7aa',
-    fontSize: 10
+    color: colors.amber,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   slaBreachLine: {
-    color: '#ffedd5',
-    fontSize: 10
+    color: colors.ink2,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   auditPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.52)',
-    backgroundColor: 'rgba(30, 41, 59, 0.56)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  auditPanelOld: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: spacing.xs
   },
   auditTitle: {
-    color: '#e2e8f0',
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
+  },
+  auditTitleOld: {
+    color: colors.ink,
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   auditInput: {
+    minHeight: 70,
+    maxHeight: 100,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
+    color: colors.ink,
+    fontSize: 13,
+    textAlignVertical: 'top',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontFamily: typography.fontBody
+  },
+  auditInputOld: {
     minHeight: 56,
     maxHeight: 92,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.62)',
-    backgroundColor: 'rgba(15, 23, 42, 0.62)',
-    color: '#f8fafc',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.ink,
     fontSize: 12,
     textAlignVertical: 'top',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
+    paddingVertical: spacing.xs,
+    fontFamily: typography.fontBody
   },
   auditButton: {
-    borderRadius: 8,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    alignItems: 'center'
+  },
+  auditButtonOld: {
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.75)',
-    backgroundColor: 'rgba(51, 65, 85, 0.65)',
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface2,
     paddingVertical: 6,
     alignItems: 'center'
   },
   auditButtonText: {
-    color: '#f1f5f9',
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    fontFamily: typography.fontBody
+  },
+  auditButtonTextOld: {
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   auditBanner: {
-    color: '#cbd5e1',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   },
   auditFeedWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(148, 163, 184, 0.35)',
+    borderTopColor: colors.borderMd,
     paddingTop: spacing.xs,
     gap: 4
   },
   auditFeedTitle: {
-    color: '#cbd5e1',
+    color: colors.ink2,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   auditEventRow: {
     gap: 2
   },
   auditEventMeta: {
-    color: '#94a3b8',
-    fontSize: 9
+    color: colors.ink3,
+    fontSize: 9,
+    fontFamily: typography.fontBody
   },
   auditEventMessage: {
-    color: '#e2e8f0',
-    fontSize: 10
+    color: colors.ink,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   thcPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.48)',
-    backgroundColor: 'rgba(20, 83, 45, 0.42)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 }
+  },
+  thcPanelOld: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: spacing.xs
@@ -1311,15 +2337,24 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   thcTitle: {
-    color: '#dcfce7',
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay
+  },
+  thcTitleOld: {
+    color: colors.ink,
     fontSize: 11,
     fontWeight: '800',
-    flex: 1
+    flex: 1,
+    fontFamily: typography.fontDisplay
   },
   thcPercent: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 12,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   thcItemRow: {
     flexDirection: 'row',
@@ -1328,121 +2363,125 @@ const styles = StyleSheet.create({
   },
   thcCheck: {
     width: 18,
-    color: '#86efac',
+    color: colors.green,
     fontSize: 12,
     fontWeight: '900'
   },
   thcCheckDone: {
-    color: '#4ade80'
+    color: colors.green
   },
   thcItemLabel: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10,
-    flex: 1
+    flex: 1,
+    fontFamily: typography.fontBody
   },
   thcItemLabelDone: {
-    color: '#bbf7d0'
+    color: colors.ink2
   },
   thcResetButton: {
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.65)',
-    backgroundColor: 'rgba(22, 101, 52, 0.55)',
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    backgroundColor: colors.greenBg,
+    paddingVertical: 8,
     alignItems: 'center'
   },
   thcResetText: {
-    color: '#f0fdf4',
+    color: colors.green,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '800',
+    letterSpacing: 0.2
   },
   thcSignOffButton: {
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(134, 239, 172, 0.72)',
-    backgroundColor: 'rgba(22, 163, 74, 0.48)',
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    backgroundColor: colors.greenBg,
+    paddingVertical: 10,
     alignItems: 'center'
   },
   thcSignOffText: {
-    color: '#f0fdf4',
-    fontSize: 10,
-    fontWeight: '800'
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2
   },
   thcBanner: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10,
     lineHeight: 13
   },
   thcSignOffMeta: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcArchiveWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.35)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 3
   },
   thcArchiveTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcArchiveLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcBlockerWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.28)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 4
   },
   thcBlockerTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcBlockerLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcOverrideButton: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(187, 247, 208, 0.62)',
-    backgroundColor: 'rgba(22, 101, 52, 0.45)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingVertical: 6,
     alignItems: 'center',
     marginTop: 2
   },
   thcOverrideText: {
-    color: '#f0fdf4',
+    color: colors.ink,
     fontSize: 10,
     fontWeight: '700'
   },
   thcPackageWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.28)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 4
   },
   thcPackageButton: {
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(134, 239, 172, 0.72)',
-    backgroundColor: 'rgba(21, 128, 61, 0.5)',
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    backgroundColor: colors.greenBg,
+    paddingVertical: 10,
     alignItems: 'center'
   },
   thcPackageButtonText: {
-    color: '#f0fdf4',
-    fontSize: 10,
-    fontWeight: '700'
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2
   },
   thcPackageRef: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10
   },
   thcDispatchRow: {
@@ -1454,54 +2493,54 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(134, 239, 172, 0.6)',
-    backgroundColor: 'rgba(22, 101, 52, 0.45)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingVertical: 6,
     paddingHorizontal: spacing.xs,
     alignItems: 'center'
   },
   thcDispatchRecipientText: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10,
     fontWeight: '700'
   },
   thcDispatchButton: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.72)',
-    backgroundColor: 'rgba(21, 128, 61, 0.55)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingVertical: 6,
     paddingHorizontal: spacing.sm,
     alignItems: 'center'
   },
   thcDispatchButtonText: {
-    color: '#f0fdf4',
+    color: colors.ink,
     fontSize: 10,
     fontWeight: '700'
   },
   thcDispatchBanner: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10,
     lineHeight: 13
   },
   thcDispatchPending: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '700'
   },
   thcDispatchHistoryWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.28)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 3
   },
   thcDispatchHistoryTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcDispatchHistoryLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcDispatchHistoryRow: {
@@ -1517,13 +2556,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 7,
     borderWidth: 1,
-    borderColor: 'rgba(134, 239, 172, 0.68)',
-    backgroundColor: 'rgba(22, 101, 52, 0.45)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingHorizontal: spacing.xs,
     paddingVertical: 4
   },
   thcDispatchAckButtonText: {
-    color: '#f0fdf4',
+    color: colors.ink,
     fontSize: 9,
     fontWeight: '700'
   },
@@ -1531,13 +2570,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 7,
     borderWidth: 1,
-    borderColor: 'rgba(187, 247, 208, 0.65)',
-    backgroundColor: 'rgba(21, 128, 61, 0.35)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingHorizontal: spacing.xs,
     paddingVertical: 4
   },
   thcDispatchRemindText: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 9,
     fontWeight: '700'
   },
@@ -1545,195 +2584,198 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 7,
     borderWidth: 1,
-    borderColor: 'rgba(254, 202, 202, 0.68)',
-    backgroundColor: 'rgba(153, 27, 27, 0.45)',
+    borderColor: colors.redBorder,
+    backgroundColor: colors.redBg,
     paddingHorizontal: spacing.xs,
     paddingVertical: 4
   },
   thcDispatchEscalateText: {
-    color: '#fee2e2',
+    color: colors.red,
     fontSize: 9,
     fontWeight: '700'
   },
   thcDispatchReminderMeta: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 9
   },
   thcDispatchEscalatedMeta: {
-    color: '#fecaca',
+    color: colors.red,
     fontSize: 9,
     fontWeight: '700'
   },
   thcDispatchAcked: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 9,
     fontWeight: '700'
   },
   thcCloseButton: {
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(134, 239, 172, 0.72)',
-    backgroundColor: 'rgba(22, 163, 74, 0.5)',
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    backgroundColor: colors.greenBg,
+    paddingVertical: 10,
     alignItems: 'center'
   },
   thcCloseButtonText: {
-    color: '#f0fdf4',
-    fontSize: 10,
-    fontWeight: '800'
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2
   },
   thcClosedMeta: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10,
     textAlign: 'center'
   },
   thcClosureHistoryWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.24)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 3
   },
   thcClosureHistoryTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcClosureHistoryLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcReopenWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.28)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 4
   },
   thcReopenTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcReopenInput: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(134, 239, 172, 0.62)',
-    backgroundColor: 'rgba(21, 128, 61, 0.28)',
-    color: '#f0fdf4',
-    fontSize: 10,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.surface,
+    color: colors.ink,
+    fontSize: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10
   },
   thcReopenButton: {
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(134, 239, 172, 0.72)',
-    backgroundColor: 'rgba(22, 163, 74, 0.5)',
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: colors.green,
+    backgroundColor: colors.greenBg,
+    paddingVertical: 10,
     alignItems: 'center'
   },
   thcReopenButtonText: {
-    color: '#f0fdf4',
-    fontSize: 10,
-    fontWeight: '700'
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2
   },
   thcReopenBanner: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10,
     lineHeight: 13
   },
   thcReopenHistoryWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.24)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 3
   },
   thcReopenHistoryTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcReopenHistoryLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcInsightsWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.24)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 2
   },
   thcInsightsTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcInsightsLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcInsightsSummary: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 9,
     lineHeight: 12
   },
   thcActionPlanWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.24)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 3
   },
   thcActionPlanTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcActionPlanStatus: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10,
     fontWeight: '700'
   },
   thcActionPlanLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcAgingWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.24)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 2
   },
   thcAgingTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcAgingLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcAgingSeverity: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10,
     fontWeight: '700'
   },
   thcTrendWrap: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(74, 222, 128, 0.24)',
+    borderTopColor: colors.greenBorder,
     paddingTop: spacing.xs,
     gap: 2
   },
   thcTrendTitle: {
-    color: '#86efac',
+    color: colors.green,
     fontSize: 10,
     fontWeight: '800'
   },
   thcTrendLine: {
-    color: '#dcfce7',
+    color: colors.ink,
     fontSize: 10
   },
   thcTrendSignal: {
-    color: '#bbf7d0',
+    color: colors.ink2,
     fontSize: 10,
     fontWeight: '700'
   }
 });
+

@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { colors, radii, typography } from '../../../shared/theme/tokens';
+
 import type { RouteMapProps } from './RouteMap.types';
 
 export function RouteMap({ style, bus, filteredStations, selectedStation, selectStation }: RouteMapProps) {
@@ -25,26 +27,29 @@ export function RouteMap({ style, bus, filteredStations, selectedStation, select
 
 const styles = StyleSheet.create({
   webMap: {
-    backgroundColor: '#091632',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(84, 113, 181, 0.45)',
+    borderBottomColor: colors.borderMd,
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8
   },
   title: {
-    color: '#dbeafe',
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   meta: {
-    color: '#9cc4ff',
-    fontSize: 11
+    color: colors.ink2,
+    fontSize: 11,
+    fontFamily: typography.fontBody
   },
   subTitle: {
-    color: '#b7d4ff',
+    color: colors.ink2,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   stationRow: {
     flexDirection: 'row',
@@ -52,20 +57,21 @@ const styles = StyleSheet.create({
     gap: 6
   },
   stationChip: {
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(106, 131, 196, 0.65)',
-    backgroundColor: 'rgba(28, 47, 92, 0.72)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: 8,
     paddingVertical: 4
   },
   stationChipActive: {
-    borderColor: 'rgba(52, 211, 153, 0.8)',
-    backgroundColor: 'rgba(7, 92, 74, 0.75)'
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg
   },
   stationChipText: {
-    color: '#e5edff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   }
 });

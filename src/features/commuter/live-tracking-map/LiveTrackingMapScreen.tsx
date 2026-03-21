@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { radii, spacing } from '../../../shared/theme/tokens';
+import { colors, radii, shadow, spacing, typography } from '../../../shared/theme/tokens';
 
 import { RouteMap } from './RouteMap';
 import { useLiveBusTracking } from './useLiveBusTracking';
@@ -74,6 +75,47 @@ export function LiveTrackingMapScreen() {
     deltaUsageLabel
   } = useLiveBusTracking();
 
+  const notificationsEnabled = useMemo(() => {
+    const normalized = notificationModeLabel.toLowerCase();
+    return normalized.includes('on') || normalized.includes('enable');
+  }, [notificationModeLabel]);
+  const livePulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(livePulseAnim, {
+          toValue: 1,
+          duration: 850,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true
+        }),
+        Animated.timing(livePulseAnim, {
+          toValue: 0,
+          duration: 1150,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true
+        })
+      ])
+    );
+
+    loop.start();
+
+    return () => {
+      loop.stop();
+      livePulseAnim.setValue(0);
+    };
+  }, [livePulseAnim]);
+
+  const pulseScale = livePulseAnim.interpolate({
+    inputRange: [0, 0.7, 1],
+    outputRange: [1, 1.28, 1]
+  });
+  const pulseOpacity = livePulseAnim.interpolate({
+    inputRange: [0, 0.7, 1],
+    outputRange: [0.92, 0.58, 0.92]
+  });
+
   return (
     <View style={styles.root}>
       <RouteMap
@@ -93,7 +135,7 @@ export function LiveTrackingMapScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search stations..."
-            placeholderTextColor="#7281a8"
+            placeholderTextColor={colors.ink3}
             style={styles.searchInput}
           />
           <View style={styles.offlineBadge}>
@@ -146,6 +188,25 @@ export function LiveTrackingMapScreen() {
       ) : null}
 
       <View style={styles.stationSheet}>
+        <View style={styles.sheetHandle} />
+
+        <View style={styles.sheetHeaderRow}>
+          <View style={styles.sheetTitleGroup}>
+            <Text style={styles.sheetRouteTitle}>{selectedStation.name}</Text>
+            <View style={styles.lineBadge}>
+              <Text style={styles.lineBadgeText}>{bus.id}</Text>
+            </View>
+          </View>
+          <View style={styles.sheetIconGroup}>
+            <Pressable style={styles.sheetIconButton} onPress={cycleNotificationChannel} accessibilityLabel="Cycle channel">
+              <Text style={styles.sheetIconGlyph}>✏</Text>
+            </Pressable>
+            <Pressable style={styles.sheetIconButton} onPress={cycleWakeAlert} accessibilityLabel="Cycle wake alert">
+              <Text style={styles.sheetIconGlyph}>↑</Text>
+            </Pressable>
+          </View>
+        </View>
+
         <Text style={styles.stationName}>{selectedStation.name}</Text>
         <Text style={styles.stationCoords}>
           {formatCoords(selectedStation.latitude, selectedStation.longitude)}
@@ -272,11 +333,40 @@ export function LiveTrackingMapScreen() {
             <Text style={styles.progressLabel}>Route progress: {routeProgressPercent}%</Text>
 
             <View style={styles.stopList}>
-              {busStopEtaRows.map((row) => (
+              <View style={styles.stopTimelineLine} />
+              {busStopEtaRows.map((row, index) => (
                 <View key={row.stationId} style={styles.stopRow}>
-                  <Text style={styles.stopName}>{row.stationName}</Text>
+                  <View style={[styles.stopDot, index === 0 ? styles.stopDotActive : styles.stopDotInactive]} />
+                  <View style={styles.stopBody}>
+                    <Text style={[styles.stopName, index === 0 ? styles.stopNameActive : null]}>{row.stationName}</Text>
+                    {index === 0 ? (
+                      <View style={styles.stopMetaRow}>
+                        <Text style={styles.stopEtaChip}>⟳ {row.etaMinutes} min</Text>
+                        <Pressable
+                          onPress={toggleNotificationsEnabled}
+                          style={({ pressed }) => [
+                            styles.notifyToggle,
+                            notificationsEnabled ? styles.notifyToggleOn : styles.notifyToggleOff,
+                            pressed ? styles.notifyTogglePressed : null
+                          ]}
+                          accessibilityLabel="Toggle notify"
+                        >
+                          <Text
+                            style={[
+                              styles.notifyToggleText,
+                              notificationsEnabled ? styles.notifyToggleTextOn : styles.notifyToggleTextOff
+                            ]}
+                          >
+                            {notificationsEnabled ? '🔔 Notify on' : '🔕 Notify off'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Text style={styles.stopEtaSub}>{row.statusLabel}</Text>
+                    )}
+                  </View>
                   <Text style={styles.stopEta}>
-                    {row.etaMinutes}m • {row.statusLabel}
+                    {row.etaMinutes}m
                   </Text>
                 </View>
               ))}
@@ -297,7 +387,7 @@ export function LiveTrackingMapScreen() {
               value={feedbackMessage}
               onChangeText={setFeedbackMessage}
               placeholder="Describe what happened..."
-              placeholderTextColor="#7f95c9"
+              placeholderTextColor={colors.ink3}
               multiline
               style={styles.feedbackInput}
             />
@@ -316,10 +406,44 @@ export function LiveTrackingMapScreen() {
           </View>
         ) : null}
 
-        <View style={styles.tabBar}>
-          <Text style={[styles.tabItem, styles.tabItemActive]}>MAP</Text>
-          <Text style={styles.tabItem}>ALERTS</Text>
-          <Text style={styles.tabItem}>HOME</Text>
+        <View style={styles.sheetFooterRow}>
+          <Pressable
+            onPress={toggleBusDetail}
+            accessibilityLabel="Start"
+            style={({ pressed }) => [
+              styles.startButton,
+              pressed ? styles.startButtonPressed : null
+            ]}
+          >
+            <Text style={styles.startButtonText}>Start</Text>
+          </Pressable>
+
+          <View style={styles.footerRightGroup}>
+            <Pressable
+              onPress={cycleWakeAlert}
+              accessibilityLabel="Live location"
+              style={({ pressed }) => [
+                styles.liveLocationButton,
+                pressed ? styles.liveLocationButtonPressed : null
+              ]}
+            >
+              <Animated.View
+                style={[styles.livePulseDot, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
+              />
+              <Text style={styles.liveLocationText}>Live</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={toggleFeedbackSheet}
+              accessibilityLabel="Open feedback"
+              style={({ pressed }) => [
+                styles.chatButton,
+                pressed ? styles.chatButtonPressed : null
+              ]}
+            >
+              <Text style={styles.chatButtonText}>💬</Text>
+            </Pressable>
+          </View>
         </View>
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -327,7 +451,7 @@ export function LiveTrackingMapScreen() {
 
       {isLoading ? (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#0ac9a6" />
+          <ActivityIndicator size="large" color={colors.green} />
           <Text style={styles.loadingText}>Loading live bus tracking...</Text>
         </View>
       ) : null}
@@ -338,7 +462,7 @@ export function LiveTrackingMapScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#040b22'
+    backgroundColor: colors.bg
   },
   map: {
     flex: 1
@@ -351,98 +475,172 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(7, 16, 45, 0.9)',
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(69, 90, 150, 0.48)',
+    borderColor: colors.border,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.xs
+    gap: spacing.xs,
+    ...shadow.sm
   },
   searchIcon: {
-    color: '#4ea2ff',
+    color: colors.blue,
     fontSize: 22,
-    lineHeight: 24
+    lineHeight: 24,
+    fontFamily: typography.fontBody
   },
   searchText: {
     flex: 1,
-    color: '#9aa8cc',
+    color: colors.ink3,
     fontSize: 14,
-    fontWeight: '500'
+    fontWeight: '500',
+    fontFamily: typography.fontBody
   },
   searchInput: {
     flex: 1,
-    color: '#d8e4ff',
+    color: colors.ink,
     fontSize: 14,
     fontWeight: '500',
-    paddingVertical: 0
+    paddingVertical: 0,
+    fontFamily: typography.fontBody
   },
   searchResultPanel: {
     marginTop: spacing.xs,
-    borderRadius: 10,
-    backgroundColor: 'rgba(10, 21, 54, 0.94)',
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(66, 89, 149, 0.62)',
-    overflow: 'hidden'
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadow.sm
   },
   searchResultItem: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(44, 63, 115, 0.45)'
+    borderBottomColor: colors.borderMd
   },
   searchResultName: {
-    color: '#e4ecff',
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   searchResultCoords: {
     marginTop: 2,
-    color: '#8ea2d3',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   emptySearchText: {
-    color: '#a3b4dc',
+    color: colors.ink3,
     fontSize: 12,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm
+    paddingVertical: spacing.sm,
+    fontFamily: typography.fontBody
   },
   offlineBadge: {
-    backgroundColor: 'rgba(18, 32, 71, 0.96)',
-    borderRadius: 9,
+    backgroundColor: colors.surface2,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(93, 112, 170, 0.62)',
+    borderColor: colors.border,
     paddingHorizontal: spacing.sm,
     paddingVertical: 5
   },
   offlineBadgeText: {
-    color: '#d9e2ff',
+    color: colors.ink,
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.4
+    letterSpacing: 0.4,
+    fontFamily: typography.fontBody
   },
   stationSheet: {
     position: 'absolute',
     left: spacing.md,
     right: spacing.md,
     bottom: spacing.sm,
-    backgroundColor: 'rgba(8, 17, 45, 0.94)',
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: 'rgba(53, 78, 141, 0.55)',
+    borderColor: colors.border,
     padding: spacing.md,
-    gap: spacing.sm
+    gap: spacing.sm,
+    ...shadow.lg
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: radii.full,
+    backgroundColor: colors.ink4,
+    marginBottom: spacing.xs
+  },
+  sheetHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.s14
+  },
+  sheetTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    flex: 1
+  },
+  sheetRouteTitle: {
+    color: colors.ink,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    fontFamily: typography.fontDisplay,
+    flexShrink: 1
+  },
+  lineBadge: {
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
+    paddingHorizontal: 7,
+    paddingVertical: 3
+  },
+  lineBadgeText: {
+    color: colors.blue,
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: typography.fontDisplay
+  },
+  sheetIconGroup: {
+    flexDirection: 'row',
+    gap: spacing.xs
+  },
+  sheetIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.sm
+  },
+  sheetIconGlyph: {
+    color: colors.ink3,
+    fontSize: 12,
+    fontFamily: typography.fontBody
   },
   caveatBanner: {
     position: 'absolute',
     left: spacing.md,
     right: spacing.md,
     bottom: 268,
-    borderRadius: 11,
-    backgroundColor: 'rgba(102, 33, 6, 0.9)',
+    borderRadius: radii.md,
+    backgroundColor: colors.amberBg,
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.5)',
+    borderColor: colors.amberBorder,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 2
@@ -452,150 +650,166 @@ const styles = StyleSheet.create({
     left: spacing.md,
     right: spacing.md,
     bottom: 328,
-    borderRadius: 11,
-    backgroundColor: 'rgba(4, 78, 60, 0.94)',
+    borderRadius: radii.md,
+    backgroundColor: colors.greenBg,
     borderWidth: 1,
-    borderColor: 'rgba(45, 212, 191, 0.7)',
+    borderColor: colors.greenBorder,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 4
   },
   alertTitle: {
-    color: '#5eead4',
+    color: colors.green,
     fontWeight: '800',
-    fontSize: 12
+    fontSize: 12,
+    fontFamily: typography.fontDisplay
   },
   alertBody: {
-    color: '#ccfbf1',
+    color: colors.ink2,
     fontSize: 11,
-    lineHeight: 14
+    lineHeight: 14,
+    fontFamily: typography.fontBody
   },
   alertDismiss: {
     alignSelf: 'flex-start',
     marginTop: 2,
-    borderRadius: 6,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(94, 234, 212, 0.8)',
+    borderColor: colors.greenBorder,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2
   },
   alertDismissText: {
-    color: '#99f6e4',
+    color: colors.green,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   caveatTitle: {
-    color: '#fcd34d',
+    color: colors.amber,
     fontWeight: '800',
-    fontSize: 12
+    fontSize: 12,
+    fontFamily: typography.fontDisplay
   },
   caveatBody: {
-    color: '#fde68a',
+    color: colors.ink2,
     fontSize: 11,
-    lineHeight: 14
+    lineHeight: 14,
+    fontFamily: typography.fontBody
   },
   stationName: {
-    color: '#eef3ff',
+    color: colors.ink,
     fontSize: 29,
     lineHeight: 32,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   stationCoords: {
     marginTop: -2,
-    color: '#7b8bb8',
-    fontSize: 12
+    color: colors.ink3,
+    fontSize: 12,
+    fontFamily: typography.fontBody
   },
   etaList: {
     gap: spacing.xs,
     marginTop: spacing.xs
   },
   etaCard: {
-    borderRadius: 13,
+    borderRadius: radii.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    backgroundColor: 'rgba(23, 38, 84, 0.72)',
+    backgroundColor: colors.surface2,
     borderWidth: 1,
-    borderColor: 'rgba(73, 96, 157, 0.5)',
+    borderColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
   etaCardPrimary: {
-    backgroundColor: 'rgba(11, 77, 87, 0.62)',
-    borderColor: 'rgba(38, 173, 156, 0.58)'
+    backgroundColor: colors.greenBg,
+    borderColor: colors.greenBorder
   },
   etaLeft: {
     gap: 2
   },
   busCode: {
-    color: '#d8f2ff',
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   routeLabel: {
-    color: '#93a3d0',
-    fontSize: 11
+    color: colors.ink3,
+    fontSize: 11,
+    fontFamily: typography.fontBody
   },
   fallbackText: {
-    color: '#fbbf24',
+    color: colors.amber,
     fontSize: 10,
-    marginTop: 2
+    marginTop: 2,
+    fontFamily: typography.fontBody
   },
   etaRight: {
     alignItems: 'flex-end'
   },
   etaMinutes: {
-    color: '#1fe6c1',
+    color: colors.green,
     fontSize: 31,
     lineHeight: 30,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   etaUnits: {
-    color: '#9aa8cc',
-    fontSize: 10,
-    marginTop: 2
-  },
-  liveTag: {
-    color: '#0ad8b1',
+    color: colors.ink3,
     fontSize: 10,
     marginTop: 2,
-    fontWeight: '700'
+    fontFamily: typography.fontBody
+  },
+  liveTag: {
+    color: colors.green,
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   wakeButton: {
     marginTop: spacing.xs,
     height: 32,
-    borderRadius: 11,
-    backgroundColor: 'rgba(12, 107, 101, 0.56)',
+    borderRadius: radii.md,
+    backgroundColor: colors.greenBg,
     borderWidth: 1,
-    borderColor: 'rgba(18, 198, 179, 0.62)',
+    borderColor: colors.greenBorder,
     justifyContent: 'center',
     paddingHorizontal: spacing.md
   },
   wakeButtonText: {
-    color: '#1ce3bb',
+    color: colors.green,
     fontWeight: '800',
-    fontSize: 13
+    fontSize: 13,
+    fontFamily: typography.fontBody
   },
   wakeHintText: {
     marginTop: 2,
-    color: '#8be8d8',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 12
+    lineHeight: 12,
+    fontFamily: typography.fontBody
   },
   prefPanel: {
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(76, 98, 164, 0.48)',
-    backgroundColor: 'rgba(17, 31, 75, 0.68)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 6
   },
   prefTitle: {
-    color: '#acc9ff',
+    color: colors.ink2,
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.3
+    letterSpacing: 0.3,
+    fontFamily: typography.fontDisplay
   },
   prefRow: {
     flexDirection: 'row',
@@ -603,24 +817,25 @@ const styles = StyleSheet.create({
   },
   prefChip: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(93, 128, 205, 0.52)',
-    backgroundColor: 'rgba(22, 43, 94, 0.74)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingVertical: 6,
     paddingHorizontal: spacing.xs
   },
   prefChipLabel: {
-    color: '#d8e6ff',
+    color: colors.ink,
     fontSize: 10,
     fontWeight: '700',
-    textAlign: 'center'
+    textAlign: 'center',
+    fontFamily: typography.fontBody
   },
   accountPanel: {
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(86, 104, 176, 0.52)',
-    backgroundColor: 'rgba(23, 30, 70, 0.74)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 5
@@ -631,18 +846,21 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   accountTitle: {
-    color: '#bfd4ff',
+    color: colors.ink2,
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   accountStatus: {
-    color: '#85f0d7',
+    color: colors.green,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   accountMeta: {
-    color: '#a9bee9',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   accountActionRow: {
     flexDirection: 'row',
@@ -651,31 +869,33 @@ const styles = StyleSheet.create({
   },
   accountButton: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(98, 201, 239, 0.72)',
-    backgroundColor: 'rgba(17, 97, 132, 0.64)',
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
     paddingVertical: 6,
     alignItems: 'center'
   },
   accountButtonText: {
-    color: '#d8f7ff',
+    color: colors.blue,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   accountButtonSecondary: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(115, 129, 192, 0.62)',
-    backgroundColor: 'rgba(33, 47, 93, 0.78)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingVertical: 6,
     alignItems: 'center'
   },
   accountButtonSecondaryText: {
-    color: '#d0ddff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   metaRow: {
     marginTop: 2,
@@ -685,66 +905,140 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   metaTextLeft: {
-    color: '#6f82b5',
+    color: colors.ink3,
     fontSize: 11,
-    flex: 1
+    flex: 1,
+    fontFamily: typography.fontBody
   },
   metaTextRight: {
-    color: '#9ec6ff',
+    color: colors.blue,
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
-    textAlign: 'right'
+    textAlign: 'right',
+    fontFamily: typography.fontBody
   },
   detailButton: {
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(65, 95, 168, 0.58)',
-    backgroundColor: 'rgba(15, 31, 76, 0.74)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: 7,
     gap: 2
   },
   detailButtonText: {
-    color: '#98bfff',
+    color: colors.blue,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   detailButtonHint: {
-    color: '#7e9fda',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   feedbackEntryButton: {
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(54, 122, 190, 0.56)',
-    backgroundColor: 'rgba(9, 44, 90, 0.64)',
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 7,
     gap: 2
   },
   feedbackEntryButtonText: {
-    color: '#8dccff',
+    color: colors.blue,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   feedbackEntryHint: {
-    color: '#82b0da',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
-  tabBar: {
-    marginTop: 2,
+  sheetFooterRow: {
+    marginTop: spacing.xs,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: spacing.xs,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.s14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(52, 74, 134, 0.45)'
+    borderTopColor: colors.border
+  },
+  startButton: {
+    borderRadius: 24,
+    backgroundColor: colors.amber,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    ...shadow.md
+  },
+  startButtonPressed: {
+    opacity: 0.9
+  },
+  startButtonText: {
+    color: colors.surface,
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: typography.fontDisplay
+  },
+  footerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs
+  },
+  liveLocationButton: {
+    borderRadius: radii.full,
+    borderWidth: 1.5,
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.s14,
+    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    ...shadow.sm
+  },
+  liveLocationButtonPressed: {
+    opacity: 0.9
+  },
+  livePulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.green
+  },
+  liveLocationText: {
+    color: colors.ink2,
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: typography.fontBody
+  },
+  chatButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.sm
+  },
+  chatButtonPressed: {
+    opacity: 0.9
+  },
+  chatButtonText: {
+    color: colors.ink3,
+    fontSize: 13,
+    fontFamily: typography.fontBody
   },
   detailPanel: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(44, 170, 169, 0.54)',
-    backgroundColor: 'rgba(8, 44, 61, 0.62)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: spacing.xs
@@ -755,58 +1049,153 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   detailTitle: {
-    color: '#b8fff0',
+    color: colors.green,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   detailTag: {
-    color: '#43efc8',
+    color: colors.green,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   detailCoords: {
-    color: '#9ed9ff',
-    fontSize: 10
+    color: colors.ink2,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   progressTrack: {
     height: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(34, 74, 108, 0.82)',
+    backgroundColor: colors.border,
     overflow: 'hidden'
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10d6b4'
+    backgroundColor: colors.green
   },
   progressLabel: {
-    color: '#84cdd5',
+    color: colors.ink2,
     fontSize: 10,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: typography.fontBody
   },
   stopList: {
-    gap: 4
+    gap: spacing.xs,
+    position: 'relative',
+    paddingLeft: 4
+  },
+  stopTimelineLine: {
+    position: 'absolute',
+    left: 10,
+    top: 6,
+    bottom: 6,
+    width: 2,
+    backgroundColor: colors.blueLine,
+    opacity: 0.4
   },
   stopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'flex-start',
+    gap: spacing.s14,
+    zIndex: 1
+  },
+  stopDot: {
+    marginTop: 3,
+    borderRadius: radii.full,
+    borderWidth: 2.5,
+    borderColor: colors.surface,
+    backgroundColor: colors.surface,
+    zIndex: 2
+  },
+  stopDotInactive: {
+    width: 10,
+    height: 10,
+    borderColor: colors.ink4
+  },
+  stopDotActive: {
+    width: 12,
+    height: 12,
+    backgroundColor: colors.blue,
+    borderColor: colors.surface
+  },
+  stopBody: {
+    flex: 1,
+    gap: 4
   },
   stopName: {
-    color: '#d8f8ff',
+    color: colors.ink,
     fontSize: 10,
-    flex: 1,
-    paddingRight: spacing.xs
+    fontFamily: typography.fontBody
   },
-  stopEta: {
-    color: '#4de8c8',
-    fontSize: 10,
+  stopNameActive: {
     fontWeight: '700'
   },
-  feedbackPanel: {
-    borderRadius: 12,
+  stopMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexWrap: 'wrap'
+  },
+  stopEtaChip: {
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: 'rgba(67, 122, 205, 0.56)',
-    backgroundColor: 'rgba(8, 33, 76, 0.68)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
+    color: colors.green,
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    fontFamily: typography.fontBody
+  },
+  notifyToggle: {
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2
+  },
+  notifyToggleOn: {
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg
+  },
+  notifyToggleOff: {
+    borderColor: colors.borderMd,
+    backgroundColor: colors.surface2
+  },
+  notifyTogglePressed: {
+    opacity: 0.92
+  },
+  notifyToggleText: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: typography.fontBody
+  },
+  notifyToggleTextOn: {
+    color: colors.green
+  },
+  notifyToggleTextOff: {
+    color: colors.ink3
+  },
+  stopEtaSub: {
+    color: colors.ink4,
+    fontSize: 9,
+    fontFamily: typography.fontBody
+  },
+  stopEta: {
+    color: colors.green,
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
+  },
+  feedbackPanel: {
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: spacing.xs
@@ -818,42 +1207,45 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   feedbackTitle: {
-    color: '#d0e5ff',
+    color: colors.blue,
     fontSize: 12,
     fontWeight: '800',
-    flex: 1
+    flex: 1,
+    fontFamily: typography.fontDisplay
   },
   feedbackCategoryChip: {
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(117, 169, 255, 0.7)',
-    backgroundColor: 'rgba(24, 67, 126, 0.78)',
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.xs,
     paddingVertical: 4
   },
   feedbackCategoryText: {
-    color: '#dbeaff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   feedbackInput: {
     minHeight: 70,
     maxHeight: 110,
-    borderRadius: 9,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(83, 128, 199, 0.62)',
-    backgroundColor: 'rgba(13, 40, 87, 0.76)',
-    color: '#e7f0ff',
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.surface,
+    color: colors.ink,
     fontSize: 12,
     textAlignVertical: 'top',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
+    paddingVertical: spacing.xs,
+    fontFamily: typography.fontBody
   },
   feedbackSubmitButton: {
-    borderRadius: 9,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(81, 196, 241, 0.74)',
-    backgroundColor: 'rgba(9, 109, 152, 0.62)',
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.surface,
     paddingVertical: 7,
     alignItems: 'center'
   },
@@ -861,48 +1253,44 @@ const styles = StyleSheet.create({
     opacity: 0.65
   },
   feedbackSubmitText: {
-    color: '#d8f6ff',
+    color: colors.blue,
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   feedbackBanner: {
-    color: '#97d7ff',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   },
   deltaRow: {
     marginTop: 2,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(41, 66, 126, 0.58)',
-    backgroundColor: 'rgba(16, 29, 69, 0.78)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     gap: 2
   },
   deltaLabel: {
-    color: '#6fb9ff',
+    color: colors.blue,
     fontSize: 10,
     letterSpacing: 0.4,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   deltaValue: {
-    color: '#b4d2ff',
+    color: colors.ink2,
     fontSize: 11,
-    fontWeight: '600'
-  },
-  tabItem: {
-    color: '#6878a5',
-    fontSize: 11,
-    letterSpacing: 0.8,
-    fontWeight: '700'
-  },
-  tabItemActive: {
-    color: '#17dcb8'
+    fontWeight: '600',
+    fontFamily: typography.fontBody
   },
   errorText: {
-    color: '#ffb454',
-    fontSize: 12
+    color: colors.amber,
+    fontSize: 12,
+    fontFamily: typography.fontBody
   },
   loadingOverlay: {
     position: 'absolute',
@@ -912,11 +1300,12 @@ const styles = StyleSheet.create({
     right: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(2, 8, 30, 0.82)',
+    backgroundColor: colors.bg,
     gap: spacing.sm
   },
   loadingText: {
-    color: '#dce6ff',
-    fontWeight: '700'
+    color: colors.ink,
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   }
 });

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { spacing } from '../../../shared/theme/tokens';
+import { colors, radii, shadow, spacing, typography } from '../../../shared/theme/tokens';
 
 import { useDriverTripControl } from './useDriverTripControl';
 
@@ -189,7 +189,7 @@ export function DriverTripControlScreen() {
               value={incidentNote}
               onChangeText={setIncidentNote}
               placeholder="Add incident details for dispatch..."
-              placeholderTextColor="#88a3d9"
+              placeholderTextColor={colors.ink3}
               multiline
               style={styles.incidentInput}
             />
@@ -215,35 +215,39 @@ export function DriverTripControlScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#061025',
+    backgroundColor: colors.bg,
     padding: spacing.md,
     justifyContent: 'center'
   },
   card: {
-    borderRadius: 18,
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: 'rgba(67, 108, 184, 0.55)',
-    backgroundColor: 'rgba(8, 21, 52, 0.92)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: spacing.md,
-    gap: spacing.sm
+    gap: spacing.sm,
+    ...shadow.lg
   },
   badge: {
     alignSelf: 'flex-start',
-    color: '#8dd6ff',
+    color: colors.blue,
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1
+    letterSpacing: 1,
+    fontFamily: typography.fontBody
   },
   title: {
-    color: '#ebf2ff',
+    color: colors.ink,
     fontSize: 30,
     lineHeight: 32,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   subtitle: {
-    color: '#9ab3df',
+    color: colors.ink2,
     fontSize: 13,
-    marginTop: -4
+    marginTop: -4,
+    fontFamily: typography.fontBody
   },
   metaGrid: {
     flexDirection: 'row',
@@ -251,22 +255,24 @@ const styles = StyleSheet.create({
   },
   metaBlock: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(77, 106, 173, 0.52)',
-    backgroundColor: 'rgba(23, 37, 79, 0.75)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 2
   },
   metaLabel: {
-    color: '#8ba3d1',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   metaValue: {
-    color: '#dce7ff',
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   metricRow: {
     flexDirection: 'row',
@@ -274,51 +280,57 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    borderRadius: 11,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(46, 171, 166, 0.56)',
-    backgroundColor: 'rgba(9, 68, 81, 0.52)',
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg,
     paddingVertical: spacing.xs,
     alignItems: 'center',
     gap: 2
   },
   metricValue: {
-    color: '#b4fff2',
+    color: colors.green,
     fontSize: 20,
     lineHeight: 21,
-    fontWeight: '900'
+    fontWeight: '900',
+    fontFamily: typography.fontDisplay
   },
   metricLabel: {
-    color: '#8ecfcb',
+    color: colors.ink2,
     fontSize: 10,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: typography.fontBody
   },
   stationCard: {
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(80, 132, 215, 0.52)',
-    backgroundColor: 'rgba(17, 41, 94, 0.68)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 2
   },
   stationLabel: {
-    color: '#91abda',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   stationName: {
-    color: '#e4edff',
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   stationMeta: {
-    color: '#99b6eb',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   stationStatus: {
-    color: '#8ce9d7',
+    color: colors.green,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   stopActionRow: {
     flexDirection: 'row',
@@ -327,38 +339,40 @@ const styles = StyleSheet.create({
   },
   stopActionButton: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
     paddingVertical: 6,
     alignItems: 'center'
   },
   arrivedButton: {
-    borderColor: 'rgba(61, 224, 201, 0.72)',
-    backgroundColor: 'rgba(8, 99, 87, 0.55)'
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg
   },
   departedButton: {
-    borderColor: 'rgba(122, 181, 255, 0.72)',
-    backgroundColor: 'rgba(28, 68, 125, 0.58)'
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg
   },
   stopActionText: {
-    color: '#def7ff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   logPanel: {
     marginTop: spacing.xs,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(92, 128, 198, 0.52)',
-    backgroundColor: 'rgba(11, 30, 72, 0.7)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
     gap: 4
   },
   logTitle: {
-    color: '#9fc1ff',
+    color: colors.blue,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   logRow: {
     flexDirection: 'row',
@@ -367,115 +381,126 @@ const styles = StyleSheet.create({
   },
   logStation: {
     flex: 1,
-    color: '#deebff',
-    fontSize: 10
+    color: colors.ink,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   logAction: {
-    color: '#5eead4',
+    color: colors.green,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   logTime: {
-    color: '#9ab6e5',
-    fontSize: 10
+    color: colors.ink3,
+    fontSize: 10,
+    fontFamily: typography.fontBody
   },
   actionRow: {
     flexDirection: 'row',
     gap: spacing.xs
   },
   button: {
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
     paddingVertical: 9,
     alignItems: 'center',
     flex: 1
   },
   primaryButton: {
-    borderColor: 'rgba(45, 201, 178, 0.68)',
-    backgroundColor: 'rgba(10, 120, 103, 0.58)'
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBg
   },
   warnButton: {
-    borderColor: 'rgba(245, 158, 11, 0.72)',
-    backgroundColor: 'rgba(146, 92, 19, 0.52)'
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg
   },
   secondaryButton: {
-    borderColor: 'rgba(120, 153, 227, 0.72)',
-    backgroundColor: 'rgba(40, 67, 128, 0.6)'
+    borderColor: colors.blueBorder,
+    backgroundColor: colors.blueBg
   },
   endButton: {
-    borderColor: 'rgba(248, 113, 113, 0.7)',
-    backgroundColor: 'rgba(127, 29, 29, 0.58)'
+    borderColor: colors.redBorder,
+    backgroundColor: colors.redBg
   },
   buttonDisabled: {
     opacity: 0.45
   },
   primaryText: {
-    color: '#d3fff8',
+    color: colors.green,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   warnText: {
-    color: '#ffedbf',
+    color: colors.amber,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   secondaryText: {
-    color: '#dbe6ff',
+    color: colors.blue,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   endText: {
-    color: '#ffe1e1',
+    color: colors.red,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   tripSummaryPanel: {
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 255, 0.56)',
-    backgroundColor: 'rgba(19, 40, 86, 0.6)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: 4
   },
   tripSummaryTitle: {
-    color: '#d7e7ff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   tripSummaryRow: {
     gap: 2,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(129, 166, 236, 0.35)',
+    borderTopColor: colors.border,
     paddingTop: 4
   },
   tripSummaryMain: {
-    color: '#eef4ff',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   tripSummaryMeta: {
-    color: '#b5caf0',
-    fontSize: 9
+    color: colors.ink3,
+    fontSize: 9,
+    fontFamily: typography.fontBody
   },
   incidentToggle: {
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 170, 84, 0.72)',
-    backgroundColor: 'rgba(126, 72, 21, 0.5)',
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg,
     paddingVertical: 8,
     alignItems: 'center'
   },
   incidentToggleText: {
-    color: '#ffe4bd',
+    color: colors.amber,
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
   },
   incidentPanel: {
-    borderRadius: 11,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: 'rgba(244, 164, 96, 0.52)',
-    backgroundColor: 'rgba(62, 39, 16, 0.56)',
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.amberBg,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     gap: spacing.xs
@@ -487,53 +512,58 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   incidentTitle: {
-    color: '#ffe9cf',
+    color: colors.amber,
     fontSize: 11,
     fontWeight: '800',
-    flex: 1
+    flex: 1,
+    fontFamily: typography.fontDisplay
   },
   incidentTypeChip: {
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255, 204, 139, 0.74)',
-    backgroundColor: 'rgba(147, 89, 29, 0.65)',
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.xs,
     paddingVertical: 4
   },
   incidentTypeText: {
-    color: '#fff1da',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: typography.fontBody
   },
   incidentInput: {
     minHeight: 66,
     maxHeight: 104,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(250, 191, 124, 0.62)',
-    backgroundColor: 'rgba(90, 55, 20, 0.58)',
-    color: '#fff3df',
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.surface,
+    color: colors.ink,
     fontSize: 12,
     textAlignVertical: 'top',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
+    paddingVertical: spacing.xs,
+    fontFamily: typography.fontBody
   },
   incidentSubmit: {
-    borderRadius: 9,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: 'rgba(253, 186, 116, 0.76)',
-    backgroundColor: 'rgba(180, 100, 28, 0.62)',
+    borderColor: colors.amberBorder,
+    backgroundColor: colors.surface,
     paddingVertical: 7,
     alignItems: 'center'
   },
   incidentSubmitText: {
-    color: '#fff6e8',
+    color: colors.amber,
     fontSize: 11,
-    fontWeight: '800'
+    fontWeight: '800',
+    fontFamily: typography.fontBody
   },
   incidentBanner: {
-    color: '#ffe3c2',
+    color: colors.ink2,
     fontSize: 10,
-    lineHeight: 13
+    lineHeight: 13,
+    fontFamily: typography.fontBody
   }
 });

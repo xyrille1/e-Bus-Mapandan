@@ -1,13 +1,13 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 type StatusTone = 'online' | 'offline' | 'syncing';
 
 const toneStyles: Record<StatusTone, { bg: string; text: string }> = {
-  online: { bg: colors.accentSoft, text: colors.accent },
-  offline: { bg: colors.warningSoft, text: colors.warning },
-  syncing: { bg: '#e0f2fe', text: '#0369a1' }
+  online: { bg: colors.greenBg, text: colors.green },
+  offline: { bg: colors.redBg, text: colors.red },
+  syncing: { bg: colors.blueBg, text: colors.blue }
 };
 
 type StatusPillProps = {
@@ -28,6 +28,8 @@ export function StatusPill({ tone, label }: StatusPillProps) {
 const styles = StyleSheet.create({
   container: {
     borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     alignSelf: 'flex-start'
@@ -35,6 +37,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 0.2
+    letterSpacing: 0.2,
+    fontFamily: typography.fontBody
   }
 });
