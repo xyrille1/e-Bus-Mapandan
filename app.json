@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "BusTrack PH",
+    "slug": "bustrack-ph-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "ph.bustrack.mobile"
+    }
+  }
+}
