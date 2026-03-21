@@ -1,8 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 
 import { radii, spacing } from '../../../shared/theme/tokens';
 
+import { RouteMap } from './RouteMap';
 import { useLiveBusTracking } from './useLiveBusTracking';
 
 function formatLastSeen(isoDate: string): string {
@@ -76,29 +76,15 @@ export function LiveTrackingMapScreen() {
 
   return (
     <View style={styles.root}>
-      <MapView style={styles.map} initialRegion={initialRegion} mapType="mutedStandard">
-        <Polyline coordinates={routePolyline} strokeColor="#08c6a4" strokeWidth={4} lineDashPattern={[8, 6]} />
-        <Marker
-          coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
-          title={bus.id}
-          description={`${bus.status} • ${bus.speedKph} km/h`}
-        />
-        <Circle
-          center={{ latitude: bus.latitude, longitude: bus.longitude }}
-          radius={210}
-          strokeColor="rgba(12, 238, 188, 0.42)"
-          fillColor="rgba(9, 216, 176, 0.14)"
-        />
-        {filteredStations.map((station) => (
-          <Marker
-            key={station.id}
-            coordinate={{ latitude: station.latitude, longitude: station.longitude }}
-            title={station.name}
-            pinColor={station.id === selectedStation.id ? '#10d6b4' : '#6f8dd6'}
-            onPress={() => selectStation(station.id)}
-          />
-        ))}
-      </MapView>
+      <RouteMap
+        style={styles.map}
+        initialRegion={initialRegion}
+        routePolyline={routePolyline}
+        bus={bus}
+        filteredStations={filteredStations}
+        selectedStation={selectedStation}
+        selectStation={selectStation}
+      />
 
       <View style={styles.searchBarWrap}>
         <View style={styles.searchBar}>

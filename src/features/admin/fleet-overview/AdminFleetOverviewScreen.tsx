@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { spacing } from '../../../shared/theme/tokens';
 
@@ -111,11 +111,12 @@ export function AdminFleetOverviewScreen() {
     thcReadiness,
     thcClosureAttempts,
     thcActionPlan,
-    thcReceiptAging
+    thcReceiptAging,
+    thcClosureTrend
   } = useAdminFleetOverview();
 
   return (
-    <View style={styles.root}>
+    <ScrollView style={styles.root} contentContainerStyle={styles.rootContent}>
       <Text style={styles.heading}>Admin Fleet Overview</Text>
       <Text style={styles.subheading}>Mapandan e-Bus Operations Center</Text>
 
@@ -643,19 +644,32 @@ export function AdminFleetOverviewScreen() {
               <Text style={styles.thcAgingLine}>Overdue (15m+): {thcReceiptAging.overdueCount}</Text>
               <Text style={styles.thcAgingSeverity}>Severity: {thcReceiptAging.severity}</Text>
             </View>
+
+            <View style={styles.thcTrendWrap}>
+              <Text style={styles.thcTrendTitle}>Closure Trend</Text>
+              <Text style={styles.thcTrendLine}>Recent window: {thcClosureTrend.recentWindow}</Text>
+              <Text style={styles.thcTrendLine}>Closed: {thcClosureTrend.recentClosed}</Text>
+              <Text style={styles.thcTrendLine}>Blocked: {thcClosureTrend.recentBlocked}</Text>
+              <Text style={styles.thcTrendLine}>Conversion: {thcClosureTrend.conversionRatePercent}%</Text>
+              <Text style={styles.thcTrendLine}>Last outcome: {thcClosureTrend.lastOutcome}</Text>
+              <Text style={styles.thcTrendSignal}>Signal: {thcClosureTrend.trendSignal}</Text>
+            </View>
           </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#081226',
+    backgroundColor: '#081226'
+  },
+  rootContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
     gap: spacing.sm
   },
   heading: {
@@ -1698,6 +1712,26 @@ const styles = StyleSheet.create({
     fontSize: 10
   },
   thcAgingSeverity: {
+    color: '#bbf7d0',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+  thcTrendWrap: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(74, 222, 128, 0.24)',
+    paddingTop: spacing.xs,
+    gap: 2
+  },
+  thcTrendTitle: {
+    color: '#86efac',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  thcTrendLine: {
+    color: '#dcfce7',
+    fontSize: 10
+  },
+  thcTrendSignal: {
     color: '#bbf7d0',
     fontSize: 10,
     fontWeight: '700'

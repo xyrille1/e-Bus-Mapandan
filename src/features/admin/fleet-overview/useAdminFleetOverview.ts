@@ -1042,6 +1042,34 @@ export function useAdminFleetOverview() {
     };
   }, [state.thcDispatchHistory]);
 
+  const thcClosureTrend = useMemo(() => {
+    const recent = state.thcClosureAttempts.slice(0, 5);
+    const recentBlocked = recent.filter((entry) => entry.status === 'Blocked').length;
+    const recentClosed = recent.filter((entry) => entry.status === 'Closed').length;
+    const total = recent.length;
+
+    const conversionRatePercent =
+      total > 0 ? Math.round((recentClosed / total) * 100) : 0;
+
+    const trendSignal: 'Improving' | 'Flat' | 'Degrading' =
+      total === 0
+        ? 'Flat'
+        : conversionRatePercent >= 60
+        ? 'Improving'
+        : conversionRatePercent >= 35
+        ? 'Flat'
+        : 'Degrading';
+
+    return {
+      recentWindow: total,
+      recentBlocked,
+      recentClosed,
+      conversionRatePercent,
+      lastOutcome: recent[0]?.status ?? 'None',
+      trendSignal
+    };
+  }, [state.thcClosureAttempts]);
+
   const closeThcTurnover = () => {
     setState((prev) => {
       if (prev.thcSignOffStatus !== 'signed') {
@@ -1195,6 +1223,7 @@ export function useAdminFleetOverview() {
     thcInsights,
     thcReadiness,
     thcActionPlan,
-    thcReceiptAging
+    thcReceiptAging,
+    thcClosureTrend
   };
 }

@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { AdminFleetOverviewScreen } from './src/features/admin/fleet-overview/AdminFleetOverviewScreen';
 import { LiveTrackingMapScreen } from './src/features/commuter/live-tracking-map/LiveTrackingMapScreen';
@@ -9,8 +9,24 @@ import { DriverTripControlScreen } from './src/features/driver/trip-control/Driv
 import { colors } from './src/shared/theme/tokens';
 
 export default function App() {
-  const [appMode, setAppMode] = useState<'commuter' | 'driver' | 'admin'>('commuter');
+  const [appMode, setAppMode] = useState<'commuter' | 'driver'>('commuter');
   const [commuterView, setCommuterView] = useState<'tracker' | 'board'>('tracker');
+  const isWeb = Platform.OS === 'web';
+
+  if (isWeb) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={styles.webHeader}>
+          <Text style={styles.webHeaderTitle}>Mapandan e-Bus Admin Web Portal</Text>
+          <Text style={styles.webHeaderMeta}>Operations dashboard for dispatch and THC handover control</Text>
+        </View>
+        <View style={styles.content}>
+          <AdminFleetOverviewScreen />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -31,14 +47,6 @@ export default function App() {
         >
           <Text style={[styles.modeText, appMode === 'driver' ? styles.modeTextActive : null]}>
             DRIVER
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.modeButton, appMode === 'admin' ? styles.modeButtonActive : null]}
-          onPress={() => setAppMode('admin')}
-        >
-          <Text style={[styles.modeText, appMode === 'admin' ? styles.modeTextActive : null]}>
-            ADMIN
           </Text>
         </Pressable>
       </View>
@@ -68,7 +76,6 @@ export default function App() {
         {appMode === 'commuter' && commuterView === 'tracker' ? <LiveTrackingMapScreen /> : null}
         {appMode === 'commuter' && commuterView === 'board' ? <OfflineFirstHomeScreen /> : null}
         {appMode === 'driver' ? <DriverTripControlScreen /> : null}
-        {appMode === 'admin' ? <AdminFleetOverviewScreen /> : null}
       </View>
     </SafeAreaView>
   );
@@ -108,6 +115,27 @@ const styles = StyleSheet.create({
   },
   modeTextActive: {
     color: '#9ff8e8'
+  },
+  webHeader: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(86, 121, 196, 0.55)',
+    backgroundColor: 'rgba(10, 24, 59, 0.86)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 3
+  },
+  webHeaderTitle: {
+    color: '#dbeafe',
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  webHeaderMeta: {
+    color: '#9fbae8',
+    fontSize: 11
   },
   subModeSwitch: {
     flexDirection: 'row',

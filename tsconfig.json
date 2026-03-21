@@ -3,6 +3,11 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "moduleSuffixes": [
+      ".native",
+      ".web",
+      ""
+    ],
     "jsx": "react-jsx",
     "strict": true,
     "allowSyntheticDefaultImports": true,
