@@ -13,10 +13,10 @@
  * final sync + trip finalisation in one atomic sequence.
  */
 
-import { useCallback, useState } from 'react';
-import { getDriverClient } from '../auth/driverSession';
-import { getCacheStats } from '../gps-broadcast/gpsLocalCache';
-import { syncOfflinePings } from '../gps-broadcast/gpsSyncService';
+import { useCallback, useState } from "react";
+import { getDriverClient } from "../auth/driverSession";
+import { getCacheStats } from "../gps-broadcast/gpsLocalCache";
+import { syncOfflinePings } from "../gps-broadcast/gpsSyncService";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ export type ShiftSummary = {
 };
 
 export type ShiftEndState = {
-  phase: 'idle' | 'flushing' | 'reviewing' | 'submitting' | 'done' | 'error';
+  phase: "idle" | "flushing" | "reviewing" | "submitting" | "done" | "error";
   summary: ShiftSummary | null;
   error: string | null;
 };
@@ -58,7 +58,12 @@ type ShiftEndActions = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Haversine distance in km between two lat/lng pairs. */
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -74,7 +79,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 
 export function useShiftEnd(): ShiftEndState & ShiftEndActions {
   const [state, setState] = useState<ShiftEndState>({
-    phase: 'idle',
+    phase: "idle",
     summary: null,
     error: null,
   });
@@ -91,7 +96,7 @@ export function useShiftEnd(): ShiftEndState & ShiftEndActions {
       routeName: string;
       stopBroadcast: () => Promise<void>;
     }): Promise<ShiftSummary | null> => {
-      setState({ phase: 'flushing', summary: null, error: null });
+      setState({ phase: "flushing", summary: null, error: null });
 
       // 1 — Stop GPS foreground service
       await stopBroadcast();
@@ -111,19 +116,27 @@ export function useShiftEnd(): ShiftEndState & ShiftEndActions {
 
       const client = getDriverClient();
       if (!client) {
-        setState({ phase: 'error', summary: null, error: 'Session expired. Cannot finalise trip.' });
+        setState({
+          phase: "error",
+          summary: null,
+          error: "Session expired. Cannot finalise trip.",
+        });
         return null;
       }
 
       // 4 — Fetch GPS pings to calculate distance and count
       const { data: pings, error: pingErr } = await client
-        .from('gps_pings')
-        .select('lat, lng, timestamp')
-        .eq('trip_id', tripId)
-        .order('timestamp', { ascending: true });
+        .from("gps_pings")
+        .select("lat, lng, timestamp")
+        .eq("trip_id", tripId)
+        .order("timestamp", { ascending: true });
 
       if (pingErr) {
-        setState({ phase: 'error', summary: null, error: `Failed to load pings: ${pingErr.message}` });
+        setState({
+          phase: "error",
+          summary: null,
+          error: `Failed to load pings: ${pingErr.message}`,
+        });
         return null;
       }
 
@@ -143,13 +156,17 @@ export function useShiftEnd(): ShiftEndState & ShiftEndActions {
 
       // 5 — Fetch trip start time
       const { data: trip, error: tripErr } = await client
-        .from('trips')
-        .select('started_at')
-        .eq('id', tripId)
+        .from("trips")
+        .select("started_at")
+        .eq("id", tripId)
         .single();
 
       if (tripErr || !trip?.started_at) {
-        setState({ phase: 'error', summary: null, error: 'Cannot read trip record.' });
+        setState({
+          phase: "error",
+          summary: null,
+          error: "Cannot read trip record.",
+        });
         return null;
       }
 
@@ -157,7 +174,8 @@ export function useShiftEnd(): ShiftEndState & ShiftEndActions {
       const durationMins = Math.max(
         1,
         Math.round(
-          (new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 60_000,
+          (new Date(endedAt).getTime() - new Date(startedAt).getTime()) /
+            60_000,
         ),
       );
 
@@ -172,7 +190,7 @@ export function useShiftEnd(): ShiftEndState & ShiftEndActions {
         pingCount: pingList.length,
       };
 
-      setState({ phase: 'reviewing', summary, error: null });
+      setState({ phase: "reviewing", summary, error: null });
       return summary;
     },
     [],
@@ -182,19 +200,19 @@ export function useShiftEnd(): ShiftEndState & ShiftEndActions {
     const { summary } = state;
     if (!summary) return false;
 
-    setState((prev) => ({ ...prev, phase: 'submitting' }));
+    setState((prev) => ({ ...prev, phase: "submitting" }));
 
     const client = getDriverClient();
     if (!client) {
       setState((prev) => ({
         ...prev,
-        phase: 'error',
-        error: 'Session expired. Cannot submit trip.',
+        phase: "error",
+        error: "Session expired. Cannot submit trip.",
       }));
       return false;
     }
 
-    const { data, error } = await client.rpc('finalize_trip_transaction', {
+    const { data, error } = await client.rpc("finalize_trip_transaction", {
       p_trip_id: summary.tripId,
       p_vehicle_id: summary.vehicleId,
       p_ended_at: summary.endedAt,
@@ -204,18 +222,18 @@ export function useShiftEnd(): ShiftEndState & ShiftEndActions {
     if (error || data !== true) {
       setState((prev) => ({
         ...prev,
-        phase: 'error',
-        error: `Submit failed: ${error?.message ?? 'Trip finalization was rejected.'}`,
+        phase: "error",
+        error: `Submit failed: ${error?.message ?? "Trip finalization was rejected."}`,
       }));
       return false;
     }
 
-    setState({ phase: 'done', summary, error: null });
+    setState({ phase: "done", summary, error: null });
     return true;
   }, [state]);
 
   const cancel = useCallback(() => {
-    setState({ phase: 'idle', summary: null, error: null });
+    setState({ phase: "idle", summary: null, error: null });
   }, []);
 
   return { ...state, initiateEnd, submitTrip, cancel };
