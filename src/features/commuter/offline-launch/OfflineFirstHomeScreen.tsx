@@ -1,10 +1,26 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { StatusPill } from '../../../shared/components/StatusPill';
+import { subscribeToBusPositions } from '../../../shared/supabase/busPositions';
 import { colors, radii, shadow, spacing, typography } from '../../../shared/theme/tokens';
 
+import {
+  getCachedStations,
+  getInitialBusSnapshot,
+  routePolyline
+} from '../live-tracking-map/liveTrackingMock';
+import type { BusSnapshot } from '../live-tracking-map/liveTrackingMock';
+import { RouteMap } from '../live-tracking-map/RouteMap';
 import { useOfflineBootstrap } from './useOfflineBootstrap';
+
+// Centred on Urdaneta Junction — midpoint of the Manaoag–Dagupan route.
+const ROUTE_INITIAL_REGION = {
+  latitude: 16.0673,
+  longitude: 120.5369,
+  latitudeDelta: 0.07,
+  longitudeDelta: 0.07
+} as const;
 
 function formatTime(isoTime: string): string {
   return new Date(isoTime).toLocaleTimeString([], {
@@ -14,7 +30,12 @@ function formatTime(isoTime: string): string {
 }
 
 export function OfflineFirstHomeScreen() {
-  const { schedule, isSyncing, errorMessage, statusTone } = useOfflineBootstrap();
+  const { schedule, isSyncing, isOnline, errorMessage, statusTone } = useOfflineBootstrap();
+
+  // Live bus position — starts at the route origin; updated via Supabase Realtime.
+  const [liveBus, setLiveBus] = useState<BusSnapshot>(getInitialBusSnapshot);
+  const cachedStations = useMemo(() => getCachedStations(), []);
+
   const arrivalAnim = useMemo(
     () => schedule.upcomingBuses.map(() => new Animated.Value(0)),
     [schedule.upcomingBuses.length]
@@ -61,6 +82,9 @@ export function OfflineFirstHomeScreen() {
     };
   }, [livePulseAnim]);
 
+  // Subscribe to Supabase Realtime bus position updates.
+  useEffect(() => subscribeToBusPositions(setLiveBus), []);
+
   const pulseScale = livePulseAnim.interpolate({
     inputRange: [0, 0.7, 1],
     outputRange: [1, 1.28, 1]
@@ -72,6 +96,13 @@ export function OfflineFirstHomeScreen() {
 
   return (
     <View style={styles.root}>
+      {isOnline === false ? (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerLabel}>⚠  Offline</Text>
+          <Text style={styles.offlineBannerMeta}>Last synced {formatTime(schedule.lastSyncAt)}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.headerRow}>
         <View style={styles.iconCircle}>
           <Text style={styles.iconGlyph}>←</Text>
@@ -99,8 +130,15 @@ export function OfflineFirstHomeScreen() {
         </View>
 
         <View style={styles.illustrationArea}>
-          <Text style={styles.illustrationText}>Stop Preview</Text>
-          <View style={styles.illustrationFade} />
+          <RouteMap
+            style={styles.mapInCard}
+            initialRegion={ROUTE_INITIAL_REGION}
+            routePolyline={routePolyline}
+            bus={liveBus}
+            filteredStations={cachedStations}
+            selectedStation={cachedStations[0]!}
+            selectStation={() => {}}
+          />
         </View>
 
         <View style={styles.statusRow}>
@@ -249,29 +287,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.amberBg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.amberBorder,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.s10
+  },
+  offlineBannerLabel: {
+    color: colors.amber,
+    fontSize: 13,
+    fontWeight: '800',
+    fontFamily: typography.fontDisplay
+  },
+  offlineBannerMeta: {
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: typography.fontBody
+  },
   illustrationArea: {
     height: 148,
     borderRadius: radii.md,
-    backgroundColor: colors.surface2,
-    borderWidth: 1,
-    borderColor: colors.border,
     overflow: 'hidden',
-    justifyContent: 'flex-end',
-    alignItems: 'center'
+    borderWidth: 1,
+    borderColor: colors.border
   },
-  illustrationText: {
-    color: colors.ink3,
-    marginBottom: spacing.s14,
-    fontSize: 12,
-    fontFamily: typography.fontBody
-  },
-  illustrationFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 40,
-    backgroundColor: colors.surface
+  mapInCard: {
+    width: '100%',
+    height: 148
   },
   statusRow: {
     gap: spacing.xs
