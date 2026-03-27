@@ -8,6 +8,11 @@ export type BusSnapshot = {
   updatedAt: string;
   latitude: number;
   longitude: number;
+  tripId?: string;
+  routeId?: string;
+  routeName?: string;
+  /** Raw JSON array written by recalculate-eta Edge Function — [{station_id, station_name, eta_mins}] */
+  etaJson?: string;
 };
 
 export type StationSnapshot = {
