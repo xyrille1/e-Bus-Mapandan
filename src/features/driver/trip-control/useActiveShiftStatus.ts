@@ -16,14 +16,14 @@
  * the GPS ping interval so the UI and the broadcast are always in sync.
  */
 
-import * as Location from 'expo-location';
-import * as Network from 'expo-network';
-import { useEffect, useRef, useState } from 'react';
-import { getDriverClient } from '../auth/driverSession';
+import * as Location from "expo-location";
+import * as Network from "expo-network";
+import { useEffect, useRef, useState } from "react";
+import { getDriverClient } from "../auth/driverSession";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ConnectionStatus = 'online' | 'offline' | 'syncing';
+export type ConnectionStatus = "online" | "offline" | "syncing";
 
 export type ActiveShiftStatusState = {
   /** Current speed from device GPS sensor (km/h) */
@@ -43,7 +43,7 @@ export type ActiveShiftStatusState = {
   hasGpsFix: boolean;
 };
 
-const TICK_MS = parseInt(process.env.EXPO_PUBLIC_LIVE_TICK_MS ?? '5000', 10);
+const TICK_MS = parseInt(process.env.EXPO_PUBLIC_LIVE_TICK_MS ?? "5000", 10);
 
 function formatElapsed(startedAt: string): { label: string; mins: number } {
   const mins = Math.max(
@@ -72,9 +72,9 @@ export function useActiveShiftStatus(opts: {
     speedKph: 0,
     latitude: null,
     longitude: null,
-    elapsedTime: '0m',
+    elapsedTime: "0m",
     elapsedMins: 0,
-    connectionStatus: 'online',
+    connectionStatus: "online",
     lastPingAt: null,
     hasGpsFix: false,
   });
@@ -92,7 +92,11 @@ export function useActiveShiftStatus(opts: {
 
     let cancelled = false;
     Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.Balanced, timeInterval: TICK_MS, distanceInterval: 5 },
+      {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: TICK_MS,
+        distanceInterval: 5,
+      },
       (loc) => {
         setState((prev) => ({
           ...prev,
@@ -104,7 +108,10 @@ export function useActiveShiftStatus(opts: {
         }));
       },
     ).then((sub) => {
-      if (cancelled) { sub.remove(); return; }
+      if (cancelled) {
+        sub.remove();
+        return;
+      }
       locationSubRef.current = sub;
     });
 
@@ -124,8 +131,8 @@ export function useActiveShiftStatus(opts: {
       const net = await Network.getNetworkStateAsync();
       const isOnline = net.isInternetReachable === true;
 
-      let connStatus: ConnectionStatus = isOnline ? 'online' : 'offline';
-      if (isOnline && unsyncedPingCount > 0) connStatus = 'syncing';
+      let connStatus: ConnectionStatus = isOnline ? "online" : "offline";
+      if (isOnline && unsyncedPingCount > 0) connStatus = "syncing";
 
       setState((prev) => ({
         ...prev,
@@ -151,10 +158,10 @@ export function useActiveShiftStatus(opts: {
     if (!client) return;
 
     client
-      .from('gps_pings')
-      .select('timestamp')
-      .eq('trip_id', tripId)
-      .order('timestamp', { ascending: false })
+      .from("gps_pings")
+      .select("timestamp")
+      .eq("trip_id", tripId)
+      .order("timestamp", { ascending: false })
       .limit(1)
       .maybeSingle()
       .then(({ data }) => {
