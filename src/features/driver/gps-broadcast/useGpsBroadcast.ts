@@ -19,23 +19,23 @@
  *   online → (network drops) → offline → (network restores, cache > 0) → syncing → online
  */
 
-import * as Location from 'expo-location';
-import * as Network from 'expo-network';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { getDriverClient } from '../auth/driverSession';
+import * as Location from "expo-location";
+import * as Network from "expo-network";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getDriverClient } from "../auth/driverSession";
 import {
   GPS_BROADCAST_TASK,
   clearTaskContext,
   setTaskContext,
-} from './gpsBackgroundTask';
-import { getCacheStats, initGpsCache } from './gpsLocalCache';
-import { syncOfflinePings } from './gpsSyncService';
-import { useBatterySavingGps, type GpsMode } from './useBatterySavingGps';
+} from "./gpsBackgroundTask";
+import { getCacheStats, initGpsCache } from "./gpsLocalCache";
+import { syncOfflinePings } from "./gpsSyncService";
+import { useBatterySavingGps, type GpsMode } from "./useBatterySavingGps";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BroadcastStatus = 'idle' | 'starting' | 'active' | 'stopping';
-export type ConnectionStatus = 'online' | 'offline' | 'syncing';
+export type BroadcastStatus = "idle" | "starting" | "active" | "stopping";
+export type ConnectionStatus = "online" | "offline" | "syncing";
 
 export type GpsBroadcastState = {
   status: BroadcastStatus;
@@ -69,14 +69,14 @@ type GpsBroadcastActions = {
   stopBroadcast: () => Promise<void>;
 };
 
-const TICK_MS = parseInt(process.env.EXPO_PUBLIC_LIVE_TICK_MS ?? '5000', 10);
+const TICK_MS = parseInt(process.env.EXPO_PUBLIC_LIVE_TICK_MS ?? "5000", 10);
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
   const [state, setState] = useState<GpsBroadcastState>({
-    status: 'idle',
-    connectionStatus: 'online',
+    status: "idle",
+    connectionStatus: "online",
     tripId: null,
     speedKph: 0,
     lastPingAt: null,
@@ -84,22 +84,24 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
     error: null,
     tripStartedAt: null,
     isBatterySaving: false,
-    gpsMode: 'high-accuracy',
+    gpsMode: "high-accuracy",
   });
 
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tripIdRef = useRef<string | null>(null);
-  const statusRef = useRef<BroadcastStatus>('idle');
+  const statusRef = useRef<BroadcastStatus>("idle");
 
   useEffect(() => {
     statusRef.current = state.status;
   }, [state.status]);
 
   // Battery-saving GPS mode (Feature #10)
-  const battery = useBatterySavingGps(state.status === 'active');
+  const battery = useBatterySavingGps(state.status === "active");
   const batteryRef = useRef(battery);
-  useEffect(() => { batteryRef.current = battery; }, [battery]);
+  useEffect(() => {
+    batteryRef.current = battery;
+  }, [battery]);
 
   // Mirror battery mode into broadcast state so the UI can show the banner
   useEffect(() => {
@@ -113,12 +115,13 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
   // When GPS mode changes while shift is active, restart location services
   // with the new accuracy/interval from useBatterySavingGps
   useEffect(() => {
-    if (state.status !== 'active' || !tripIdRef.current) return;
+    if (state.status !== "active" || !tripIdRef.current) return;
 
     const opts = batteryRef.current.getLocationOptions();
-    const notifBody = batteryRef.current.gpsMode === 'battery-saving'
-      ? 'GPS in battery-saving mode. Shift continues at reduced accuracy.'
-      : 'GPS broadcasting. Your route is being tracked.';
+    const notifBody =
+      batteryRef.current.gpsMode === "battery-saving"
+        ? "GPS in battery-saving mode. Shift continues at reduced accuracy."
+        : "GPS broadcasting. Your route is being tracked.";
 
     // Restart foreground watch for real-time UI speed display
     locationSubRef.current?.remove();
@@ -128,27 +131,30 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
         speedKph: Math.max(0, (loc.coords.speed ?? 0) * 3.6),
         lastPingAt: new Date(loc.timestamp).toISOString(),
       }));
-    }).then((sub) => { locationSubRef.current = sub; });
+    }).then((sub) => {
+      locationSubRef.current = sub;
+    });
 
     // Restart background task with new accuracy / interval
     (async () => {
-      const isRunning = await Location.hasStartedLocationUpdatesAsync(GPS_BROADCAST_TASK);
+      const isRunning =
+        await Location.hasStartedLocationUpdatesAsync(GPS_BROADCAST_TASK);
       if (isRunning) {
         await Location.stopLocationUpdatesAsync(GPS_BROADCAST_TASK);
         await Location.startLocationUpdatesAsync(GPS_BROADCAST_TASK, {
           ...opts,
           foregroundService: {
-            notificationTitle: 'BusTrack PH — Shift Active',
+            notificationTitle: "BusTrack PH — Shift Active",
             notificationBody: notifBody,
-            notificationColor: '#1A6B42',
+            notificationColor: "#1A6B42",
           },
           pausesUpdatesAutomatically: false,
           showsBackgroundLocationIndicator: true,
         });
       }
     })();
-  // Re-run only when the GPS mode toggles (not on every render)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-run only when the GPS mode toggles (not on every render)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battery.gpsMode]);
 
   // Initialise SQLite cache once on mount
@@ -158,7 +164,7 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
 
   // ── Connectivity + sync loop (runs only while shift is active) ───────────────
   useEffect(() => {
-    if (state.status !== 'active') return;
+    if (state.status !== "active") return;
 
     const checkAndSync = async () => {
       const net = await Network.getNetworkStateAsync();
@@ -168,20 +174,20 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
       if (isOnline && stats.unsyncedCount > 0) {
         setState((prev) => ({
           ...prev,
-          connectionStatus: 'syncing',
+          connectionStatus: "syncing",
           unsyncedPingCount: stats.unsyncedCount,
         }));
         await syncOfflinePings(30);
         const after = getCacheStats();
         setState((prev) => ({
           ...prev,
-          connectionStatus: after.unsyncedCount > 0 ? 'syncing' : 'online',
+          connectionStatus: after.unsyncedCount > 0 ? "syncing" : "online",
           unsyncedPingCount: after.unsyncedCount,
         }));
       } else {
         setState((prev) => ({
           ...prev,
-          connectionStatus: isOnline ? 'online' : 'offline',
+          connectionStatus: isOnline ? "online" : "offline",
           unsyncedPingCount: stats.unsyncedCount,
         }));
       }
@@ -197,30 +203,37 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
 
   // ── Start broadcast ───────────────────────────────────────────────────────────
   const startBroadcast = useCallback(
-    async ({ driverId, vehicleId, routeId }: StartOptions): Promise<string | null> => {
-      if (statusRef.current !== 'idle') {
+    async ({
+      driverId,
+      vehicleId,
+      routeId,
+    }: StartOptions): Promise<string | null> => {
+      if (statusRef.current !== "idle") {
         return tripIdRef.current;
       }
 
-      setState((prev) => ({ ...prev, status: 'starting', error: null }));
+      setState((prev) => ({ ...prev, status: "starting", error: null }));
 
       // 1 — Location permissions
-      const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
-      if (fgStatus !== 'granted') {
+      const { status: fgStatus } =
+        await Location.requestForegroundPermissionsAsync();
+      if (fgStatus !== "granted") {
         setState((prev) => ({
           ...prev,
-          status: 'idle',
-          error: 'Location permission denied. Enable it in device settings.',
+          status: "idle",
+          error: "Location permission denied. Enable it in device settings.",
         }));
         return null;
       }
 
-      const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
-      if (bgStatus !== 'granted') {
+      const { status: bgStatus } =
+        await Location.requestBackgroundPermissionsAsync();
+      if (bgStatus !== "granted") {
         setState((prev) => ({
           ...prev,
-          status: 'idle',
-          error: 'Background location permission denied. The app needs it to track your shift.',
+          status: "idle",
+          error:
+            "Background location permission denied. The app needs it to track your shift.",
         }));
         return null;
       }
@@ -228,34 +241,46 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
       // 2 — Create trip record in Supabase
       const client = getDriverClient();
       if (!client) {
-        setState((prev) => ({ ...prev, status: 'idle', error: 'Session expired. Please log in again.' }));
+        setState((prev) => ({
+          ...prev,
+          status: "idle",
+          error: "Session expired. Please log in again.",
+        }));
         return null;
       }
 
       const { data: trip, error: tripErr } = await client
-        .from('trips')
-        .insert({ driver_id: driverId, vehicle_id: vehicleId, route_id: routeId, status: 'active' })
-        .select('id, started_at')
+        .from("trips")
+        .insert({
+          driver_id: driverId,
+          vehicle_id: vehicleId,
+          route_id: routeId,
+          status: "active",
+        })
+        .select("id, started_at")
         .single();
 
       if (tripErr || !trip?.id) {
         setState((prev) => ({
           ...prev,
-          status: 'idle',
-          error: `Failed to start trip: ${tripErr?.message ?? 'Unknown error'}`,
+          status: "idle",
+          error: `Failed to start trip: ${tripErr?.message ?? "Unknown error"}`,
         }));
         return null;
       }
 
       const tripId: string = trip.id as string;
-      const tripStartedAt: string = (trip.started_at as string) ?? new Date().toISOString();
+      const tripStartedAt: string =
+        (trip.started_at as string) ?? new Date().toISOString();
       tripIdRef.current = tripId;
 
       let immediateLastPingAt: string | null = null;
       let immediateSpeedKph: number | null = null;
 
       try {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
         const firstPing = {
           trip_id: tripId,
           driver_id: driverId,
@@ -269,16 +294,18 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
         };
 
         const { data: inserted } = await client
-          .from('gps_pings')
+          .from("gps_pings")
           .insert(firstPing)
-          .select('id, trip_id, driver_id, lat, lng, speed_kph, heading, timestamp')
+          .select(
+            "id, trip_id, driver_id, lat, lng, speed_kph, heading, timestamp",
+          )
           .single();
 
         if (inserted) {
-          const body = { type: 'INSERT', record: inserted };
+          const body = { type: "INSERT", record: inserted };
           await Promise.allSettled([
-            client.functions.invoke('recalculate-eta', { body }),
-            client.functions.invoke('geofence-check', { body }),
+            client.functions.invoke("recalculate-eta", { body }),
+            client.functions.invoke("geofence-check", { body }),
           ]);
         }
 
@@ -296,9 +323,9 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
       await Location.startLocationUpdatesAsync(GPS_BROADCAST_TASK, {
         ...locationOpts,
         foregroundService: {
-          notificationTitle: 'BusTrack PH — Shift Active',
-          notificationBody: 'GPS broadcasting. Your route is being tracked.',
-          notificationColor: '#1A6B42',
+          notificationTitle: "BusTrack PH — Shift Active",
+          notificationBody: "GPS broadcasting. Your route is being tracked.",
+          notificationColor: "#1A6B42",
         },
         pausesUpdatesAutomatically: false,
         showsBackgroundLocationIndicator: true,
@@ -318,7 +345,7 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
 
       setState((prev) => ({
         ...prev,
-        status: 'active',
+        status: "active",
         tripId,
         tripStartedAt,
         lastPingAt: immediateLastPingAt ?? new Date().toISOString(),
@@ -332,7 +359,7 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
 
   // ── Stop broadcast ────────────────────────────────────────────────────────────
   const stopBroadcast = useCallback(async () => {
-    setState((prev) => ({ ...prev, status: 'stopping' }));
+    setState((prev) => ({ ...prev, status: "stopping" }));
 
     // Remove foreground location watch
     locationSubRef.current?.remove();
@@ -341,20 +368,21 @@ export function useGpsBroadcast(): GpsBroadcastState & GpsBroadcastActions {
     // Stop background task + foreground service notification
     tripIdRef.current = null;
     clearTaskContext();
-    const isRunning = await Location.hasStartedLocationUpdatesAsync(GPS_BROADCAST_TASK);
+    const isRunning =
+      await Location.hasStartedLocationUpdatesAsync(GPS_BROADCAST_TASK);
     if (isRunning) {
       await Location.stopLocationUpdatesAsync(GPS_BROADCAST_TASK);
     }
 
     setState((prev) => ({
       ...prev,
-      status: 'idle',
+      status: "idle",
       tripId: null,
       tripStartedAt: null,
       speedKph: 0,
       lastPingAt: null,
       isBatterySaving: false,
-      gpsMode: 'high-accuracy',
+      gpsMode: "high-accuracy",
     }));
   }, []);
 
