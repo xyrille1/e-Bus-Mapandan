@@ -1,5 +1,5 @@
-import type { BusSnapshot } from '../../features/commuter/live-tracking-map/liveTrackingMock';
-import { supabase } from './client';
+import type { BusSnapshot } from "../../features/commuter/live-tracking-map/liveTrackingMock";
+import { supabase } from "./client";
 
 type BusPositionRow = {
   id: string;
@@ -22,11 +22,11 @@ type CompletedTripRow = {
   ended_at: string | null;
 };
 
-function mapStatus(status: string): BusSnapshot['status'] {
-  if (status === 'idle') return 'At Terminal';
-  if (status === 'offline') return 'Offline';
-  if (status === 'delayed') return 'Delayed';
-  return 'En Route';
+function mapStatus(status: string): BusSnapshot["status"] {
+  if (status === "idle") return "At Terminal";
+  if (status === "offline") return "Offline";
+  if (status === "delayed") return "Delayed";
+  return "En Route";
 }
 
 function mapRow(row: BusPositionRow): BusSnapshot {
@@ -52,10 +52,12 @@ function mapRow(row: BusPositionRow): BusSnapshot {
 export async function fetchCurrentBusPositions(): Promise<BusSnapshot[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('bus_positions')
-    .select('id, plate_number, latitude, longitude, speed_kph, status, trip_id, route_id, route_name, updated_at, eta_json')
-    .order('updated_at', { ascending: false })
-    .eq('status', 'active');
+    .from("bus_positions")
+    .select(
+      "id, plate_number, latitude, longitude, speed_kph, status, trip_id, route_id, route_name, updated_at, eta_json",
+    )
+    .order("updated_at", { ascending: false })
+    .eq("status", "active");
   if (error || !data) return [];
   return (data as BusPositionRow[]).map(mapRow);
 }
@@ -79,31 +81,31 @@ export async function fetchCurrentBusPositions(): Promise<BusSnapshot[]> {
  *   -- Enable Realtime for this table in the Supabase dashboard.
  */
 export function subscribeToBusPositions(
-  onPosition: (bus: BusSnapshot) => void
+  onPosition: (bus: BusSnapshot) => void,
 ): () => void {
   if (!supabase) return () => {};
 
   const channel = supabase
-    .channel('bus-positions-live')
+    .channel("bus-positions-live")
     .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'bus_positions' },
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "bus_positions" },
       (payload) => {
         const row = payload.new as BusPositionRow;
         if (row?.id) {
           onPosition(mapRow(row));
         }
-      }
+      },
     )
     .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'bus_positions' },
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "bus_positions" },
       (payload) => {
         const row = payload.new as BusPositionRow;
         if (row?.id) {
           onPosition(mapRow(row));
         }
-      }
+      },
     )
     .subscribe();
 
@@ -115,21 +117,29 @@ export function subscribeToBusPositions(
 }
 
 export function subscribeToTripCompletions(
-  onTripCompleted: (trip: { id: string; vehicleId: string; endedAt: string | null }) => void
+  onTripCompleted: (trip: {
+    id: string;
+    vehicleId: string;
+    endedAt: string | null;
+  }) => void,
 ): () => void {
   if (!supabase) return () => {};
 
   const channel = supabase
-    .channel('trip-completions-live')
+    .channel("trip-completions-live")
     .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'trips' },
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "trips" },
       (payload) => {
         const row = payload.new as CompletedTripRow;
-        if (row?.id && row.status === 'completed') {
-          onTripCompleted({ id: row.id, vehicleId: row.vehicle_id, endedAt: row.ended_at });
+        if (row?.id && row.status === "completed") {
+          onTripCompleted({
+            id: row.id,
+            vehicleId: row.vehicle_id,
+            endedAt: row.ended_at,
+          });
         }
-      }
+      },
     )
     .subscribe();
 
