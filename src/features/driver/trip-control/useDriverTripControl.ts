@@ -14,7 +14,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDriverClient } from "../auth/driverSession";
 import { type GpsMode } from "../gps-broadcast/useBatterySavingGps";
 import { useGpsBroadcast } from "../gps-broadcast/useGpsBroadcast";
-import { useGeofenceShiftEnd, type GeofencePrompt } from "../shift-end/useGeofenceShiftEnd";
+import {
+  useGeofenceShiftEnd,
+  type GeofencePrompt,
+} from "../shift-end/useGeofenceShiftEnd";
 import { useShiftEnd, type ShiftSummary } from "../shift-end/useShiftEnd";
 
 // ── Local types ───────────────────────────────────────────────────────────────
@@ -22,7 +25,12 @@ import { useShiftEnd, type ShiftSummary } from "../shift-end/useShiftEnd";
 type IncidentType = "Traffic" | "Breakdown" | "Medical" | "Security";
 type DriverTripPhase = "idle" | "running" | "paused" | "completed";
 
-const INCIDENT_TYPES: IncidentType[] = ["Traffic", "Breakdown", "Medical", "Security"];
+const INCIDENT_TYPES: IncidentType[] = [
+  "Traffic",
+  "Breakdown",
+  "Medical",
+  "Security",
+];
 
 const ROUTE_STATIONS = [
   "Manaoag Public Terminal",
@@ -33,7 +41,11 @@ const ROUTE_STATIONS = [
   "Dagupan City Bus Terminal",
 ] as const;
 
-type StationLogEntry = { station: string; action: "ARRIVED" | "DEPARTED"; at: string };
+type StationLogEntry = {
+  station: string;
+  action: "ARRIVED" | "DEPARTED";
+  at: string;
+};
 
 type CompletedTrip = {
   id: string;
@@ -87,7 +99,13 @@ export type DriverTripControlState = {
   incidentStatus: "idle" | "sending" | "sent" | "failed";
   incidentBanner: string | null;
   completedTrips: CompletedTrip[];
-  shiftEndPhase: "idle" | "flushing" | "reviewing" | "submitting" | "done" | "error";
+  shiftEndPhase:
+    | "idle"
+    | "flushing"
+    | "reviewing"
+    | "submitting"
+    | "done"
+    | "error";
   shiftSummary: ShiftSummary | null;
   shiftEndError: string | null;
   geofencePrompt: GeofencePrompt | null;
@@ -128,17 +146,25 @@ export function useDriverTripControl(opts: {
 
   const [isPaused, setIsPaused] = useState(false);
   const [stationIndex, setStationIndex] = useState(0);
-  const [routeStations, setRouteStations] = useState<string[]>([...ROUTE_STATIONS]);
+  const [routeStations, setRouteStations] = useState<string[]>([
+    ...ROUTE_STATIONS,
+  ]);
   const [liveLastUpdateAt, setLiveLastUpdateAt] = useState<string | null>(null);
-  const [liveEtaToNextStopMins, setLiveEtaToNextStopMins] = useState<number | null>(null);
+  const [liveEtaToNextStopMins, setLiveEtaToNextStopMins] = useState<
+    number | null
+  >(null);
   const [liveNextStation, setLiveNextStation] = useState<string | null>(null);
   const [occupancyPercent] = useState(32);
-  const [stationStatus, setStationStatus] = useState<"en-route" | "arrived">("en-route");
+  const [stationStatus, setStationStatus] = useState<"en-route" | "arrived">(
+    "en-route",
+  );
   const [stationLog, setStationLog] = useState<StationLogEntry[]>([]);
   const [isIncidentPanelVisible, setIsIncidentPanelVisible] = useState(false);
   const [incidentType, setIncidentType] = useState<IncidentType>("Traffic");
   const [incidentNote, setIncidentNote] = useState("");
-  const [incidentStatus, setIncidentStatus] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  const [incidentStatus, setIncidentStatus] = useState<
+    "idle" | "sending" | "sent" | "failed"
+  >("idle");
   const [incidentBanner, setIncidentBanner] = useState<string | null>(null);
   const [completedTrips, setCompletedTrips] = useState<CompletedTrip[]>([]);
   const [elapsedTime, setElapsedTime] = useState("0m");
@@ -152,14 +178,19 @@ export function useDriverTripControl(opts: {
     }
     const startedAt = broadcast.tripStartedAt;
     const tick = () => {
-      const mins = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 60_000));
+      const mins = Math.max(
+        0,
+        Math.floor((Date.now() - new Date(startedAt).getTime()) / 60_000),
+      );
       const h = Math.floor(mins / 60);
       const m = mins % 60;
       setElapsedTime(h > 0 ? `${h}h ${m}m` : `${m}m`);
     };
     tick();
     elapsedTimerRef.current = setInterval(tick, TICK_MS);
-    return () => { if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current); };
+    return () => {
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+    };
   }, [broadcast.status, broadcast.tripStartedAt]);
 
   useEffect(() => {
@@ -181,7 +212,9 @@ export function useDriverTripControl(opts: {
 
       if (!isMounted || error || !data?.length) return;
 
-      const stationNames = (data as RouteStationRow[]).map((row) => row.station_name);
+      const stationNames = (data as RouteStationRow[]).map(
+        (row) => row.station_name,
+      );
       if (stationNames.length > 0) {
         setRouteStations(stationNames);
       }
@@ -218,9 +251,16 @@ export function useDriverTripControl(opts: {
 
       try {
         const parsed = JSON.parse(row.eta_json) as EtaRow[];
-        const next = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
-        setLiveEtaToNextStopMins(typeof next?.eta_mins === "number" ? Math.max(0, Math.round(next.eta_mins)) : null);
-        setLiveNextStation(typeof next?.station_name === "string" ? next.station_name : null);
+        const next =
+          Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
+        setLiveEtaToNextStopMins(
+          typeof next?.eta_mins === "number"
+            ? Math.max(0, Math.round(next.eta_mins))
+            : null,
+        );
+        setLiveNextStation(
+          typeof next?.station_name === "string" ? next.station_name : null,
+        );
       } catch {
         setLiveEtaToNextStopMins(null);
         setLiveNextStation(null);
@@ -242,12 +282,22 @@ export function useDriverTripControl(opts: {
       .channel(`driver-bus-position-${vehicleId}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "bus_positions", filter: `id=eq.${vehicleId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "bus_positions",
+          filter: `id=eq.${vehicleId}`,
+        },
         (payload) => applyRow(payload.new as BusPositionRealtimeRow),
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "bus_positions", filter: `id=eq.${vehicleId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "bus_positions",
+          filter: `id=eq.${vehicleId}`,
+        },
         (payload) => applyRow(payload.new as BusPositionRealtimeRow),
       )
       .subscribe();
@@ -277,7 +327,11 @@ export function useDriverTripControl(opts: {
   }, [broadcast.connectionStatus]);
 
   const healthTone =
-    syncHealth === "online" ? "#1A6B42" : syncHealth === "offline" ? "#DC2626" : "#D97706";
+    syncHealth === "online"
+      ? "#1A6B42"
+      : syncHealth === "offline"
+        ? "#DC2626"
+        : "#D97706";
 
   const startTrip = useCallback(async () => {
     setStationIndex(0);
@@ -298,7 +352,13 @@ export function useDriverTripControl(opts: {
       routeName,
       stopBroadcast: broadcast.stopBroadcast,
     });
-  }, [broadcast.tripId, broadcast.stopBroadcast, shiftEnd, vehicleId, routeName]);
+  }, [
+    broadcast.tripId,
+    broadcast.stopBroadcast,
+    shiftEnd,
+    vehicleId,
+    routeName,
+  ]);
 
   const submitShiftEnd = useCallback(async () => {
     const ok = await shiftEnd.submitTrip();
@@ -329,26 +389,44 @@ export function useDriverTripControl(opts: {
       routeName,
       stopBroadcast: broadcast.stopBroadcast,
     });
-  }, [geofence, broadcast.tripId, broadcast.stopBroadcast, shiftEnd, vehicleId, routeName]);
+  }, [
+    geofence,
+    broadcast.tripId,
+    broadcast.stopBroadcast,
+    shiftEnd,
+    vehicleId,
+    routeName,
+  ]);
 
-  const dismissGeofencePrompt = useCallback(() => geofence.dismissGeofencePrompt(), [geofence]);
+  const dismissGeofencePrompt = useCallback(
+    () => geofence.dismissGeofencePrompt(),
+    [geofence],
+  );
 
   const markArrivedAtStop = useCallback(() => {
     if (phase !== "running") return;
-    const station = routeStations[stationIndex] ?? routeStations[0] ?? "Unknown Station";
+    const station =
+      routeStations[stationIndex] ?? routeStations[0] ?? "Unknown Station";
     setStationStatus("arrived");
     setStationLog((prev) =>
-      [{ station, action: "ARRIVED" as const, at: new Date().toISOString() }, ...prev].slice(0, 4),
+      [
+        { station, action: "ARRIVED" as const, at: new Date().toISOString() },
+        ...prev,
+      ].slice(0, 4),
     );
   }, [phase, routeStations, stationIndex]);
 
   const markDepartedFromStop = useCallback(() => {
     if (phase === "idle" || phase === "completed") return;
-    const station = routeStations[stationIndex] ?? routeStations[0] ?? "Unknown Station";
+    const station =
+      routeStations[stationIndex] ?? routeStations[0] ?? "Unknown Station";
     setStationStatus("en-route");
     setStationIndex((prev) => (prev + 1) % Math.max(1, routeStations.length));
     setStationLog((prev) =>
-      [{ station, action: "DEPARTED" as const, at: new Date().toISOString() }, ...prev].slice(0, 4),
+      [
+        { station, action: "DEPARTED" as const, at: new Date().toISOString() },
+        ...prev,
+      ].slice(0, 4),
     );
   }, [phase, routeStations, stationIndex]);
 
@@ -368,7 +446,10 @@ export function useDriverTripControl(opts: {
   const handleSetIncidentNote = useCallback(
     (note: string) => {
       setIncidentNote(note);
-      if (incidentStatus === "failed") { setIncidentStatus("idle"); setIncidentBanner(null); }
+      if (incidentStatus === "failed") {
+        setIncidentStatus("idle");
+        setIncidentBanner(null);
+      }
     },
     [incidentStatus],
   );
@@ -390,16 +471,14 @@ export function useDriverTripControl(opts: {
     setIncidentStatus("sending");
     setIncidentBanner("Submitting incident report to dispatch...");
 
-    const { error } = await client
-      .from("driver_incidents")
-      .insert({
-        trip_id: broadcast.tripId,
-        driver_id: driverId,
-        vehicle_id: vehicleId,
-        route_id: routeId,
-        incident_type: incidentType,
-        note: incidentNote.trim(),
-      });
+    const { error } = await client.from("driver_incidents").insert({
+      trip_id: broadcast.tripId,
+      driver_id: driverId,
+      vehicle_id: vehicleId,
+      route_id: routeId,
+      incident_type: incidentType,
+      note: incidentNote.trim(),
+    });
 
     if (error) {
       setIncidentStatus("failed");
@@ -410,7 +489,14 @@ export function useDriverTripControl(opts: {
     setIncidentStatus("sent");
     setIncidentBanner(`${incidentType} incident reported.`);
     setIncidentNote("");
-  }, [broadcast.tripId, driverId, incidentNote, incidentType, routeId, vehicleId]);
+  }, [
+    broadcast.tripId,
+    driverId,
+    incidentNote,
+    incidentType,
+    routeId,
+    vehicleId,
+  ]);
 
   return {
     busId: vehicleId,
@@ -424,8 +510,13 @@ export function useDriverTripControl(opts: {
     gpsMode: broadcast.gpsMode,
     syncHealth,
     healthTone,
-    lastUpdateAt: liveLastUpdateAt ?? broadcast.lastPingAt ?? new Date().toISOString(),
-    nextStation: liveNextStation ?? routeStations[stationIndex] ?? routeStations[0] ?? "Unknown Station",
+    lastUpdateAt:
+      liveLastUpdateAt ?? broadcast.lastPingAt ?? new Date().toISOString(),
+    nextStation:
+      liveNextStation ??
+      routeStations[stationIndex] ??
+      routeStations[0] ??
+      "Unknown Station",
     occupancyPercent,
     etaToNextStopMins: liveEtaToNextStopMins ?? 0,
     stationStatus,
