@@ -1,23 +1,58 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-import { StatusPill } from '../../../shared/components/StatusPill';
-import { colors, radii, shadow, spacing, typography } from '../../../shared/theme/tokens';
+import { StatusPill } from "../../../shared/components/StatusPill";
+import { subscribeToBusPositions } from "../../../shared/supabase/busPositions";
+import {
+  colors,
+  radii,
+  shadow,
+  spacing,
+  typography,
+} from "../../../shared/theme/tokens";
 
-import { useOfflineBootstrap } from './useOfflineBootstrap';
+import {
+  getCachedStations,
+  getInitialBusSnapshot,
+  routePolyline,
+} from "../live-tracking-map/liveTrackingMock";
+import type { BusSnapshot } from "../live-tracking-map/liveTrackingMock";
+import { RouteMap } from "../live-tracking-map/RouteMap";
+import { useOfflineBootstrap } from "./useOfflineBootstrap";
+
+// Centred on Urdaneta Junction — midpoint of the Manaoag–Dagupan route.
+const ROUTE_INITIAL_REGION = {
+  latitude: 16.0673,
+  longitude: 120.5369,
+  latitudeDelta: 0.07,
+  longitudeDelta: 0.07,
+} as const;
 
 function formatTime(isoTime: string): string {
   return new Date(isoTime).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 export function OfflineFirstHomeScreen() {
-  const { schedule, isSyncing, errorMessage, statusTone } = useOfflineBootstrap();
+  const { schedule, isSyncing, isOnline, errorMessage, statusTone } =
+    useOfflineBootstrap();
+
+  // Live bus position — starts at the route origin; updated via Supabase Realtime.
+  const [liveBus, setLiveBus] = useState<BusSnapshot>(getInitialBusSnapshot);
+  const cachedStations = useMemo(() => getCachedStations(), []);
+
   const arrivalAnim = useMemo(
     () => schedule.upcomingBuses.map(() => new Animated.Value(0)),
-    [schedule.upcomingBuses.length]
+    [schedule.upcomingBuses.length],
   );
   const livePulseAnim = useRef(new Animated.Value(0)).current;
 
@@ -28,8 +63,8 @@ export function OfflineFirstHomeScreen() {
         duration: 360,
         delay: 0,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true
-      })
+        useNativeDriver: true,
+      }),
     );
 
     Animated.stagger(70, animations).start();
@@ -42,15 +77,15 @@ export function OfflineFirstHomeScreen() {
           toValue: 1,
           duration: 850,
           easing: Easing.out(Easing.quad),
-          useNativeDriver: true
+          useNativeDriver: true,
         }),
         Animated.timing(livePulseAnim, {
           toValue: 0,
           duration: 1150,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true
-        })
-      ])
+          useNativeDriver: true,
+        }),
+      ]),
     );
 
     loop.start();
@@ -61,17 +96,29 @@ export function OfflineFirstHomeScreen() {
     };
   }, [livePulseAnim]);
 
+  // Subscribe to Supabase Realtime bus position updates.
+  useEffect(() => subscribeToBusPositions(setLiveBus), []);
+
   const pulseScale = livePulseAnim.interpolate({
     inputRange: [0, 0.7, 1],
-    outputRange: [1, 1.28, 1]
+    outputRange: [1, 1.28, 1],
   });
   const pulseOpacity = livePulseAnim.interpolate({
     inputRange: [0, 0.7, 1],
-    outputRange: [0.92, 0.58, 0.92]
+    outputRange: [0.92, 0.58, 0.92],
   });
 
   return (
     <View style={styles.root}>
+      {isOnline === false ? (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerLabel}>⚠ Offline</Text>
+          <Text style={styles.offlineBannerMeta}>
+            Last synced {formatTime(schedule.lastSyncAt)}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.headerRow}>
         <View style={styles.iconCircle}>
           <Text style={styles.iconGlyph}>←</Text>
@@ -99,8 +146,15 @@ export function OfflineFirstHomeScreen() {
         </View>
 
         <View style={styles.illustrationArea}>
-          <Text style={styles.illustrationText}>Stop Preview</Text>
-          <View style={styles.illustrationFade} />
+          <RouteMap
+            style={styles.mapInCard}
+            initialRegion={ROUTE_INITIAL_REGION}
+            routePolyline={routePolyline}
+            bus={liveBus}
+            filteredStations={cachedStations}
+            selectedStation={cachedStations[0]!}
+            selectStation={() => {}}
+          />
         </View>
 
         <View style={styles.statusRow}>
@@ -108,13 +162,15 @@ export function OfflineFirstHomeScreen() {
             tone={statusTone}
             label={
               isSyncing
-                ? 'Syncing latest data'
+                ? "Syncing latest data"
                 : errorMessage
-                ? 'Offline mode'
-                : 'Live updates connected'
+                  ? "Offline mode"
+                  : "Live updates connected"
             }
           />
-          <Text style={styles.syncMeta}>Last sync {formatTime(schedule.lastSyncAt)}</Text>
+          <Text style={styles.syncMeta}>
+            Last sync {formatTime(schedule.lastSyncAt)}
+          </Text>
         </View>
 
         <Text style={styles.sectionLabel}>NEXT ARRIVALS</Text>
@@ -131,16 +187,16 @@ export function OfflineFirstHomeScreen() {
                     {
                       translateY: arrivalAnim[index].interpolate({
                         inputRange: [0, 1],
-                        outputRange: [10, 0]
-                      })
-                    }
-                  ]
-                }
+                        outputRange: [10, 0],
+                      }),
+                    },
+                  ],
+                },
               ]}
             >
               <View style={styles.arrivalLeft}>
                 <View style={styles.lineBadge}>
-                  <Text style={styles.lineBadgeText}>{item.split(' ')[0]}</Text>
+                  <Text style={styles.lineBadgeText}>{item.split(" ")[0]}</Text>
                 </View>
                 <Text style={styles.listItemText}>{item}</Text>
               </View>
@@ -152,7 +208,9 @@ export function OfflineFirstHomeScreen() {
 
       {errorMessage ? (
         <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Estimated - Live data unavailable</Text>
+          <Text style={styles.noticeTitle}>
+            Estimated - Live data unavailable
+          </Text>
           <Text style={styles.noticeText}>{errorMessage}</Text>
         </View>
       ) : null}
@@ -161,7 +219,12 @@ export function OfflineFirstHomeScreen() {
 
       <View style={styles.bottomBar}>
         <Pressable style={styles.livePill} accessibilityLabel="Live location">
-          <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]} />
+          <Animated.View
+            style={[
+              styles.liveDot,
+              { transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+            ]}
+          />
           <Text style={styles.livePillText}>Live Location</Text>
         </Pressable>
         <Pressable style={styles.iconCircle} accessibilityLabel="Open chat">
@@ -177,19 +240,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     paddingTop: spacing.sm,
-    gap: spacing.xs
+    gap: spacing.xs,
   },
   headerRow: {
     paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   headerTitle: {
     color: colors.ink,
     fontSize: 14,
-    fontWeight: '700',
-    fontFamily: typography.fontDisplay
+    fontWeight: "700",
+    fontFamily: typography.fontDisplay,
   },
   iconCircle: {
     width: 38,
@@ -198,14 +261,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.borderMd,
     backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.sm
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.sm,
   },
   iconGlyph: {
     color: colors.ink3,
     fontSize: 14,
-    fontFamily: typography.fontBody
+    fontFamily: typography.fontBody,
   },
   headerCard: {
     marginHorizontal: spacing.md,
@@ -216,28 +279,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.s18,
     ...shadow.md,
-    gap: spacing.sm
+    gap: spacing.sm,
   },
   stopHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.sm
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.sm,
   },
   stopTitleWrap: {
     flex: 1,
-    maxWidth: 210
+    maxWidth: 210,
   },
   stopId: {
     marginTop: spacing.xxs,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: "500",
     color: colors.ink4,
-    fontFamily: typography.fontBody
+    fontFamily: typography.fontBody,
   },
   iconStack: {
-    flexDirection: 'column',
-    gap: 6
+    flexDirection: "column",
+    gap: 6,
   },
   sheetIconCircle: {
     width: 32,
@@ -246,60 +309,69 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderMd,
     backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center'
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.amberBg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.amberBorder,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.s10,
+  },
+  offlineBannerLabel: {
+    color: colors.amber,
+    fontSize: 13,
+    fontWeight: "800",
+    fontFamily: typography.fontDisplay,
+  },
+  offlineBannerMeta: {
+    color: colors.amber,
+    fontSize: 12,
+    fontWeight: "500",
+    fontFamily: typography.fontBody,
   },
   illustrationArea: {
     height: 148,
     borderRadius: radii.md,
-    backgroundColor: colors.surface2,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    alignItems: 'center'
   },
-  illustrationText: {
-    color: colors.ink3,
-    marginBottom: spacing.s14,
-    fontSize: 12,
-    fontFamily: typography.fontBody
-  },
-  illustrationFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 40,
-    backgroundColor: colors.surface
+  mapInCard: {
+    width: "100%",
+    height: 148,
   },
   statusRow: {
-    gap: spacing.xs
+    gap: spacing.xs,
   },
   syncMeta: {
     color: colors.ink2,
     fontSize: 13,
-    fontFamily: typography.fontBody
+    fontFamily: typography.fontBody,
   },
   sectionLabel: {
     color: colors.ink4,
     fontSize: 10,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1.2,
-    fontWeight: '700',
+    fontWeight: "700",
     fontFamily: typography.fontBody,
-    marginTop: spacing.xs
+    marginTop: spacing.xs,
   },
   stationName: {
     color: colors.ink,
     fontSize: 20,
     lineHeight: 24,
-    fontWeight: '700',
-    fontFamily: typography.fontDisplay
+    fontWeight: "700",
+    fontFamily: typography.fontDisplay,
   },
   listWrap: {
     marginTop: spacing.s10,
-    gap: 7
+    gap: 7,
   },
   listItem: {
     backgroundColor: colors.surface2,
@@ -308,16 +380,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.s10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.s10
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.s10,
   },
   arrivalLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 9,
-    flex: 1
+    flex: 1,
   },
   lineBadge: {
     borderRadius: 6,
@@ -325,26 +397,26 @@ const styles = StyleSheet.create({
     borderColor: colors.blueBorder,
     backgroundColor: colors.blueBg,
     paddingHorizontal: 7,
-    paddingVertical: 3
+    paddingVertical: 3,
   },
   lineBadgeText: {
     color: colors.blue,
     fontSize: 11,
-    fontWeight: '700',
-    fontFamily: typography.fontDisplay
+    fontWeight: "700",
+    fontFamily: typography.fontDisplay,
   },
   listItemText: {
     color: colors.ink,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 13,
     flex: 1,
-    fontFamily: typography.fontBody
+    fontFamily: typography.fontBody,
   },
   arrivalTimeText: {
     color: colors.green,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 12,
-    fontFamily: typography.fontBody
+    fontFamily: typography.fontBody,
   },
   noticeCard: {
     borderRadius: radii.md,
@@ -352,22 +424,22 @@ const styles = StyleSheet.create({
     borderColor: colors.amberBorder,
     borderWidth: 1,
     padding: spacing.md,
-    gap: spacing.xs
+    gap: spacing.xs,
   },
   noticeTitle: {
     color: colors.amber,
-    fontWeight: '800',
+    fontWeight: "800",
     fontSize: 14,
-    fontFamily: typography.fontDisplay
+    fontFamily: typography.fontDisplay,
   },
   noticeText: {
     color: colors.ink2,
     fontSize: 13,
     lineHeight: 18,
-    fontFamily: typography.fontBody
+    fontFamily: typography.fontBody,
   },
   flexGap: {
-    flex: 1
+    flex: 1,
   },
   bottomBar: {
     borderTopWidth: 1,
@@ -376,9 +448,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: spacing.s10,
     paddingTop: spacing.s10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   livePill: {
     borderRadius: radii.full,
@@ -387,21 +459,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.s18,
     paddingVertical: spacing.s10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
-    ...shadow.sm
+    ...shadow.sm,
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: radii.full,
-    backgroundColor: colors.green
+    backgroundColor: colors.green,
   },
   livePillText: {
     color: colors.ink2,
     fontSize: 13,
-    fontWeight: '600',
-    fontFamily: typography.fontBody
-  }
+    fontWeight: "600",
+    fontFamily: typography.fontBody,
+  },
 });
