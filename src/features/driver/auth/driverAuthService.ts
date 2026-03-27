@@ -8,9 +8,9 @@
  *   logoutDriver()         — wipe storage and clear in-memory session
  */
 
-import * as SecureStore from 'expo-secure-store';
-import { supabase } from '../../../shared/supabase/client';
-import { clearDriverSession, initDriverSession } from './driverSession';
+import * as SecureStore from "expo-secure-store";
+import { supabase } from "../../../shared/supabase/client";
+import { clearDriverSession, initDriverSession } from "./driverSession";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,17 +40,25 @@ type StoredSession = {
   attempts_remaining?: number;
 };
 
-const SESSION_KEY = 'driver_session_v1';
+const SESSION_KEY = "driver_session_v1";
 const LOGIN_TIMEOUT_MS = 15000;
 
 type EdgeInvokeError = {
   message?: string;
   context?: {
     status?: number;
-    json?: () => Promise<{ error?: string; locked?: boolean; attempts_remaining?: number }>;
+    json?: () => Promise<{
+      error?: string;
+      locked?: boolean;
+      attempts_remaining?: number;
+    }>;
     text?: () => Promise<string>;
     clone?: () => {
-      json?: () => Promise<{ error?: string; locked?: boolean; attempts_remaining?: number }>;
+      json?: () => Promise<{
+        error?: string;
+        locked?: boolean;
+        attempts_remaining?: number;
+      }>;
       text?: () => Promise<string>;
     };
     body?: { error?: string; locked?: boolean; attempts_remaining?: number };
@@ -66,30 +74,32 @@ type ParsedEdgeLoginError = {
 
 function mapStatusToFallbackMessage(status?: number): string {
   if (status === 401) {
-    return 'Invalid Vehicle ID or PIN.';
+    return "Invalid Vehicle ID or PIN.";
   }
   if (status === 423) {
-    return 'Account locked after 5 failed attempts. Admin reset required.';
+    return "Account locked after 5 failed attempts. Admin reset required.";
   }
   if (status === 404) {
-    return 'driver-login function is not deployed. Deploy Supabase Edge Functions and try again.';
+    return "driver-login function is not deployed. Deploy Supabase Edge Functions and try again.";
   }
   if (status && status >= 500) {
-    return 'Login server error. Check Supabase Edge Function logs.';
+    return "Login server error. Check Supabase Edge Function logs.";
   }
-  return 'Login failed.';
+  return "Login failed.";
 }
 
-async function extractEdgeErrorMessage(error: EdgeInvokeError): Promise<ParsedEdgeLoginError> {
+async function extractEdgeErrorMessage(
+  error: EdgeInvokeError,
+): Promise<ParsedEdgeLoginError> {
   const context = error.context;
   const status = context?.status;
 
   const responseLike =
-    context?.clone && typeof context.clone === 'function'
+    context?.clone && typeof context.clone === "function"
       ? context.clone()
       : context;
 
-  if (responseLike?.json && typeof responseLike.json === 'function') {
+  if (responseLike?.json && typeof responseLike.json === "function") {
     try {
       const body = await responseLike.json();
       if (body?.error) {
@@ -97,18 +107,22 @@ async function extractEdgeErrorMessage(error: EdgeInvokeError): Promise<ParsedEd
           message: body.error,
           locked: body.locked === true,
           attemptsRemaining:
-            typeof body.attempts_remaining === 'number' ? body.attempts_remaining : undefined,
+            typeof body.attempts_remaining === "number"
+              ? body.attempts_remaining
+              : undefined,
         };
       }
       if (
         body &&
-        (body.locked === true || typeof body.attempts_remaining === 'number')
+        (body.locked === true || typeof body.attempts_remaining === "number")
       ) {
         return {
           message: mapStatusToFallbackMessage(status),
           locked: body.locked === true,
           attemptsRemaining:
-            typeof body.attempts_remaining === 'number' ? body.attempts_remaining : undefined,
+            typeof body.attempts_remaining === "number"
+              ? body.attempts_remaining
+              : undefined,
         };
       }
     } catch {
@@ -116,7 +130,7 @@ async function extractEdgeErrorMessage(error: EdgeInvokeError): Promise<ParsedEd
     }
   }
 
-  if (context?.json && typeof context.json === 'function') {
+  if (context?.json && typeof context.json === "function") {
     try {
       const body = await context.json();
       if (body?.error) {
@@ -131,24 +145,24 @@ async function extractEdgeErrorMessage(error: EdgeInvokeError): Promise<ParsedEd
     return { message: context.body.error };
   }
 
-  if (typeof context?.error === 'string' && context.error.trim().length > 0) {
+  if (typeof context?.error === "string" && context.error.trim().length > 0) {
     return { message: context.error };
   }
 
-  if (typeof error.message === 'string' && error.message.trim().length > 0) {
+  if (typeof error.message === "string" && error.message.trim().length > 0) {
     const normalized = error.message.toLowerCase();
     if (
-      normalized.includes('failed to send a request to the edge function') ||
-      normalized.includes('enotfound') ||
-      normalized.includes('could not be resolved') ||
-      normalized.includes('network request failed')
+      normalized.includes("failed to send a request to the edge function") ||
+      normalized.includes("enotfound") ||
+      normalized.includes("could not be resolved") ||
+      normalized.includes("network request failed")
     ) {
       return {
         message:
-          'Cannot reach the login server. Check EXPO_PUBLIC_SUPABASE_URL, internet connection, and that the driver-login function is deployed.',
+          "Cannot reach the login server. Check EXPO_PUBLIC_SUPABASE_URL, internet connection, and that the driver-login function is deployed.",
       };
     }
-    if (normalized.includes('non-2xx status code')) {
+    if (normalized.includes("non-2xx status code")) {
       return { message: mapStatusToFallbackMessage(status) };
     }
     return { message: error.message };
@@ -169,36 +183,60 @@ export async function loginDriver(
   pin: string,
 ): Promise<DriverLoginResult> {
   if (!supabase) {
-    return { success: false, error: 'No server connection. Check your network.' };
+    return {
+      success: false,
+      error: "No server connection. Check your network.",
+    };
   }
 
-  let invokeResult: { data: StoredSession | null; error: { message?: string; context?: { json?: () => Promise<{ error?: string }> } } | null };
+  let invokeResult: {
+    data: StoredSession | null;
+    error: {
+      message?: string;
+      context?: { json?: () => Promise<{ error?: string }> };
+    } | null;
+  };
   try {
     invokeResult = await Promise.race([
-      supabase.functions.invoke<StoredSession>('driver-login', {
+      supabase.functions.invoke<StoredSession>("driver-login", {
         body: { vehicle_id: vehicleId.trim().toUpperCase(), pin: pin.trim() },
-      }) as Promise<{ data: StoredSession | null; error: { message?: string; context?: { json?: () => Promise<{ error?: string }> } } | null }>,
+      }) as Promise<{
+        data: StoredSession | null;
+        error: {
+          message?: string;
+          context?: { json?: () => Promise<{ error?: string }> };
+        } | null;
+      }>,
       new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Login request timed out. Check your connection and try again.')), LOGIN_TIMEOUT_MS);
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Login request timed out. Check your connection and try again.",
+              ),
+            ),
+          LOGIN_TIMEOUT_MS,
+        );
       }),
     ]);
   } catch (invokeError) {
-    const msg = (invokeError as Error).message || '';
+    const msg = (invokeError as Error).message || "";
     const normalized = msg.toLowerCase();
     if (
-      normalized.includes('failed to send a request to the edge function') ||
-      normalized.includes('enotfound') ||
-      normalized.includes('could not be resolved') ||
-      normalized.includes('network request failed')
+      normalized.includes("failed to send a request to the edge function") ||
+      normalized.includes("enotfound") ||
+      normalized.includes("could not be resolved") ||
+      normalized.includes("network request failed")
     ) {
       return {
         success: false,
-        error: 'Cannot reach the login server. Check EXPO_PUBLIC_SUPABASE_URL, internet connection, and that the driver-login function is deployed.',
+        error:
+          "Cannot reach the login server. Check EXPO_PUBLIC_SUPABASE_URL, internet connection, and that the driver-login function is deployed.",
       };
     }
     return {
       success: false,
-      error: msg || 'Unable to reach the login server.',
+      error: msg || "Unable to reach the login server.",
     };
   }
 
@@ -219,10 +257,12 @@ export async function loginDriver(
     const isLocked = data?.locked === true;
     return {
       success: false,
-      error: data?.error ?? 'Unexpected server response.',
+      error: data?.error ?? "Unexpected server response.",
       locked: isLocked,
       attemptsRemaining:
-        typeof data?.attempts_remaining === 'number' ? (data.attempts_remaining as number) : undefined,
+        typeof data?.attempts_remaining === "number"
+          ? (data.attempts_remaining as number)
+          : undefined,
     };
   }
 
