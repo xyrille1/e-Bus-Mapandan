@@ -1,13 +1,13 @@
-import * as Network from 'expo-network';
-import { useEffect, useMemo, useState } from 'react';
+import * as Network from "expo-network";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   CachedSchedule,
   fetchScheduleDelta,
   getSeedSnapshot,
   readCachedSchedule,
-  writeCachedSchedule
-} from '../../../shared/storage/scheduleCache';
+  writeCachedSchedule,
+} from "../../../shared/storage/scheduleCache";
 
 type OfflineBootstrapState = {
   schedule: CachedSchedule;
@@ -27,7 +27,7 @@ export function useOfflineBootstrap() {
     isLoadingCache: true,
     isSyncing: false,
     isOnline: null,
-    errorMessage: null
+    errorMessage: null,
   });
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export function useOfflineBootstrap() {
         ...prev,
         schedule: cached,
         isLoadingCache: false,
-        isSyncing: true
+        isSyncing: true,
       }));
 
       // ── Phase 2: Check real network connectivity ─────────────────────────
@@ -75,14 +75,14 @@ export function useOfflineBootstrap() {
           ...prev,
           schedule: updated,
           isSyncing: false,
-          errorMessage: null
+          errorMessage: null,
         }));
       } catch {
         if (!isMounted) return;
         setState((prev) => ({
           ...prev,
           isSyncing: false,
-          errorMessage: 'Live sync unavailable. Showing last known schedule.'
+          errorMessage: "Live sync unavailable. Showing last known schedule.",
         }));
       }
     };
@@ -95,11 +95,18 @@ export function useOfflineBootstrap() {
   }, []);
 
   const statusTone = useMemo(() => {
-    if (state.isLoadingCache || state.isOnline === null) return 'syncing' as const;
-    if (state.isOnline === false || state.errorMessage) return 'offline' as const;
-    if (state.isSyncing) return 'syncing' as const;
-    return 'online' as const;
-  }, [state.isLoadingCache, state.isOnline, state.isSyncing, state.errorMessage]);
+    if (state.isLoadingCache || state.isOnline === null)
+      return "syncing" as const;
+    if (state.isOnline === false || state.errorMessage)
+      return "offline" as const;
+    if (state.isSyncing) return "syncing" as const;
+    return "online" as const;
+  }, [
+    state.isLoadingCache,
+    state.isOnline,
+    state.isSyncing,
+    state.errorMessage,
+  ]);
 
   return {
     schedule: state.schedule,
@@ -107,6 +114,6 @@ export function useOfflineBootstrap() {
     isSyncing: state.isSyncing,
     isOnline: state.isOnline,
     errorMessage: state.errorMessage,
-    statusTone
+    statusTone,
   };
 }
