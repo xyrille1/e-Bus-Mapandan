@@ -3,26 +3,16 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "moduleSuffixes": [
-      ".native",
-      ".web",
-      ""
-    ],
+    "moduleSuffixes": [".native", ".web", ""],
     "jsx": "react-jsx",
     "strict": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "types": [
-      "react",
-      "react-native"
-    ]
+    "types": ["react", "react-native"]
   },
-  "include": [
-    "App.tsx",
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ],
+  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["supabase"],
   "extends": "expo/tsconfig.base"
 }

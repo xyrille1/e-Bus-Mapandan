@@ -4,12 +4,18 @@
     "slug": "bustrack-ph-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false
     },
     "android": {
       "package": "ph.bustrack.mobile"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store"
+    ]
   }
 }

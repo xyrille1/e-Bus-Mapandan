@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": "../..",
+    "paths": {
+      "https://esm.sh/@supabase/supabase-js@2": [
+        "node_modules/@supabase/supabase-js"
+      ],
+      "https://deno.land/x/bcrypt@v0.4.1/mod.ts": [
+        "supabase/functions/deno-types/bcrypt.d.ts"
+      ]
+    }
+  },
+  "include": ["**/*.ts"]
+}

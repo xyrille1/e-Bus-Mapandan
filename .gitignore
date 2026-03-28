@@ -6,3 +6,8 @@ coverage/
 .DS_Store
 npm-debug.log*
 yarn-error.log*
+
+# Local environment — never commit real keys
+.env
+.env.local
+
